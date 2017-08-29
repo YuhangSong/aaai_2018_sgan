@@ -48,8 +48,8 @@ while the Wasserstein distance is defined to be,
   W(\mathbb{P}_r,\mathbb{P}_g)=\sup_{\|f\|_L \leq 1} \{ \mathbb{E}_{x_r \sim \mathbb{P}_r} [f(x_r)] - \mathbb{E}_{x_g \sim \mathbb{P}_g} [f(x_g)] \}
 \end{equation}
 Apparently, both $S$ and $W$ distance will be minimized if the $\mathbb{P}_r$ and $\mathbb{P}_g$ are identical.
-To take a deeper insight of the advantage of the proposed $S$ distance, we consider the representation of these two distance at a sample $x_g$.
-This is crucial, since when updating \textit{Generator} $G$, it only observe at a specific $x_g$ instead of having a whole sight of the distributions $\mathbb{P}_r$ and $\mathbb{P}_g$.
+To take a deeper insight of the advantage of the proposed $S$ distance, we consider the representation of these two distance at one specific sample $x_g$.
+This is crucial, since when updating \textit{Generator} $G$, it only observe at a specific $x_g$, instead of having a whole sight of the distributions $\mathbb{P}_r$ and $\mathbb{P}_g$.
 The $S$ at $x_g$ is,
 \begin{equation}\label{s-distance-at-xg}
   S_{\mathbb{P}_r,\mathbb{P}_g}(x_g)= | \int_{x_g}^{1} \mathbb{P}_r(x) d x - \int_{x_g}^{1} \mathbb{P}_g(x) d x |
@@ -58,9 +58,11 @@ while the $W$ at $x_g$ is,
 \begin{equation}\label{w-distance-xg}
   W_{\mathbb{P}_r,\mathbb{P}_g}(x_g) = f(x) \approx \mathbb{P}_r(x) - \mathbb{P}_g(x)
 \end{equation}
-We can see that $S_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ consider how unbalance are the two distributions in a whole sight (even when at a specific $x_g$), while the $W_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ considers the unbalance of the two probabilities at this point.
+We can see that $S_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ consider how unbalance are the two distributions in a whole sight, while the $W_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ considers the unbalance of the two probabilities at this specific $x_g$. One can easily think of a $x_g$, where $W_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ is zero, but the distributions $\mathbb{P}_r$ and $\mathbb{P}_r$ are not identical, which means $W_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ is failing. But under this situation, $S_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ still gives a right direction for $x_g$ to update, since it observes the unbalance of $\mathbb{P}_r$ and $\mathbb{P}_r$ on each side of the $x_g$.
 
 \section{GAN Based on $S$ Distance}
+Following we proposed the method to achieve this $S$ distance in a GAN.
+We still describe things in one-dimensional case to make it simple and straight forward.
 For every $x_{r}, x_{g}$ pair, we sample $x_{\tau}$ between $x_{r}$ and $x_g$,
 \begin{equation}\label{x-epsilon}
   x_{\tau} = \tau x_{r} + (1-\tau) x_g
@@ -69,8 +71,8 @@ where
 \begin{equation}\label{epsilon}
   \tau \sim U[0,1]
 \end{equation}
-Consider our problem on a discrete space with interval of $\varepsilon\rightarrow 0$, we give every notation of $x$ a check mark, i.e., $\check{x}$, to mark that they are discrete value under interval $\varepsilon$.
-Later on we will derive limitation on $\varepsilon\rightarrow 0$, so that we can have a general conclusion on the continuous space.
+Following, we consider our problem on a discrete space with interval of $\varepsilon\rightarrow 0$, we give every notation of $x$ a check mark, i.e., $\check{x}$, to mark that they are discrete value under interval $\varepsilon$.
+Later on, we will derive limitation on $\varepsilon\rightarrow 0$, so that we can have a general conclusion on the continuous space.
 Now consider a event denoted by: $\check{x}_\tau\overset{t}{=}\check{x}_n$, which means,
 \begin{itemize}
   \item Sample $\check{x}_\tau$ for $t$ times, $\check{x}_n$ got sampled as $\check{x}_\tau$ at least for one time.
@@ -92,18 +94,18 @@ If we sample $\check{x}_\tau$ for $t$ times, where
 \begin{equation}\label{T}
   t = d/{\delta}
 \end{equation}
-Here, $\delta$ is also approaching to zero. We assume it approaches zero in the same order as $\varepsilon$ approaching zero\footnote{In practice, $\varepsilon$ may approach zero in a much more higher order than $\delta$ approaching zero, i.e., $\varepsilon=a\delta^b$. But this does not effect the conclusion we have in \eqref{limit-constant}.}.
-Then, we,
+Then, we have,
 \begin{eqnarray}\label{p-tau}
     && P(\check{x}_\tau\overset{t}{=}\check{x}_n|\check{x}_r,\check{x}_g) \nonumber\\
     &=& 1 - (1-P(\check{x}_\tau\overset{1}{=}\check{x}_n|\check{x}_r,\check{x}_g))^t \nonumber\\
-    &=& 
+    &=&
     \begin{cases}
         1 - (1-\frac{1}{d/\varepsilon})^{d/\delta} &\mbox{$\check{x}_r<\check{x}_n<\check{x}_g,\check{x}_g<\check{x}_n<\check{x}_r$}\\
         0 &\mbox{else}
     \end{cases}
 \end{eqnarray}
-Now, we consider this limit,
+Here, $\delta$ is also approaching to zero. We assume $\delta$ approaches zero in the same order as $\varepsilon$ approaching zero\footnote{Note that in practice, $\varepsilon$ may approach zero in a much more higher order than $\delta$ approaching zero, i.e., $\varepsilon=a\delta^b$. Since $\varepsilon$ is the minimal data value we can have on a computer, while $\delta$ is a hyper-parameter we set to be as large as possible. But this does not effect the conclusion we will have in \eqref{limit-constant}.}.
+Now, we consider following limit,
 \begin{eqnarray}\label{limit-constant}
     && \lim_{\varepsilon,\delta\rightarrow0} (1-\frac{1}{d/\varepsilon})^{d/\delta} \nonumber\\
     \nonumber &=& \lim_{\varepsilon,\delta\rightarrow0} e^{d/\delta \ln(1-\frac{1}{d/\varepsilon})} \\
@@ -111,7 +113,7 @@ Now, we consider this limit,
     \nonumber &=& \lim_{\varepsilon,\delta\rightarrow0} e^{\frac{\frac{-1}{d-\varepsilon}}{1/d}} \\
     \nonumber &=& e^{-1} \\
 \end{eqnarray}
-Put the conclusion of \eqref{limit-constant} to \eqref{p-tau}, we have,
+Put the conclusion of \eqref{limit-constant} into \eqref{p-tau}, we have,
 \begin{eqnarray}\label{final-p-inter}
     && P(x_\tau=x_n|x_r,x_g) = \lim_{\varepsilon,\delta\rightarrow0} P(\check{x}_\tau\overset{t}{=}\check{x}_n|\check{x}_r,\check{x}_g) \nonumber\\
     &=&
@@ -120,6 +122,7 @@ Put the conclusion of \eqref{limit-constant} to \eqref{p-tau}, we have,
         0 &\mbox{else}
     \end{cases}
 \end{eqnarray}
+where we have switch back to the continuous space and have this general conclusion.
 Now, we propose our update rules for the \textit{Discriminator} $D$ with parameter $\theta$ to be optimized,
 \begin{equation}\label{g-loss}
   \theta \longrightarrow \theta + \nabla_{\theta} \{ - |\nabla_{x_{\tau}}D^{\theta}(x_{\tau})-\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}|^2 \}
@@ -130,6 +133,7 @@ which means we try to make $\nabla_{x_{\tau}}D^{\theta}(x_{\tau})$ approach $\fr
     &=& P(x_\tau=x_n|x_g<x_n<x_r) P(x_g<x_n<x_r) \nonumber\\
     && - P(x_\tau=x_n|x_r<x_n<x_g) P(x_r<x_n<x_g) \nonumber\\
 \end{eqnarray}
+which means the value of $\nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n)$ is determined by the probability of it gets positive update and negative update.
 Since \eqref{final-p-inter}, we know that
 \begin{equation}\label{p-inter-conditional-1}
   P(x_\tau=x_n|x_g<x_n<x_r)=1 - e^{-1}
@@ -137,7 +141,7 @@ Since \eqref{final-p-inter}, we know that
 \begin{equation}\label{p-inter-conditional-2}
   P(x_\tau=x_n|x_r<x_n<x_g)=1 - e^{-1}
 \end{equation}
-Put \eqref{p-inter-conditional-1} \eqref{p-inter-conditional-2} in \eqref{d-at-xn}, we have,
+Put \eqref{p-inter-conditional-1} \eqref{p-inter-conditional-2} into \eqref{d-at-xn}, we have,
 \begin{eqnarray}\label{explain-d-gradient}
     && \nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n) \nonumber\\
     &=& [P(x_g<x_n<x_r) - P(x_r<x_n<x_g)](1 - e^{-1}) \nonumber\\
@@ -145,13 +149,14 @@ Put \eqref{p-inter-conditional-1} \eqref{p-inter-conditional-2} in \eqref{d-at-x
     && - \int_{0}^{x_n}\mathbb{P}_r(x)dx \int_{x_n}^{1}\mathbb{P}_g(x)dx)](1 - e^{-1}) \nonumber\\
     &=& [\int_{x_n}^{1}\mathbb{P}_r(x)dx-\int_{x_n}^{1}\mathbb{P}_g(x)dx](1 - e^{-1})
 \end{eqnarray}
-Now, we can give the update rule of \textit{Generator} $G$ with parameter $\beta$ to be learnt, and we put \eqref{explain-d-gradient} in this update rules to have a clearer view,
+Now, we can give the update rule of \textit{Generator} $G$ with parameter $\beta$ to be learnt, and we put \eqref{explain-d-gradient} in this update rule to have a clearer view on what $G$ is doing,
 \begin{eqnarray}\label{g-loss}
   && \beta \nonumber\\
   & \longrightarrow & \beta + \nabla_{\beta} \{ D^{\theta}(G^{\beta}(x_g)) \} \nonumber\\
   & \longrightarrow & \beta + \{[\int_{x_g}^{1}\mathbb{P}_r(x)dx-\int_{x_g}^{1}\mathbb{P}_g(x)dx](1 - e^{-1})(\nabla_{\beta}G^{\beta}(x_g)) \} \nonumber\\
 \end{eqnarray}
 which means wherever $x_g$ is, it is updating itself to make $\int_{x_g}^{1}\mathbb{P}_g(x)dx$ approaching $\int_{x_g}^{1}\mathbb{P}_r(x)dx$.
-The absolute error when updating $G$ is actually modelling the proposed $S$ distance.
+One can just take a few cases to confirm this.
+The absolute error when updating $G$ is actually modelling the proposed $S$ distance in \eqref{s-distance} \eqref{s-distance-at-xg}.
 
 \end{document}
