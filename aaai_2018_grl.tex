@@ -104,21 +104,25 @@ Then, we have,
         0 &\mbox{else}
     \end{cases}
 \end{eqnarray}
-Here, $\delta$ is also approaching to zero. We assume $\delta$ approaches zero in the same order as $\varepsilon$ approaching zero\footnote{Note that in practice, $\varepsilon$ may approach zero in a much more higher order than $\delta$ approaching zero, i.e., $\varepsilon=a\delta^b$. Since $\varepsilon$ is the minimal data value we can have on a computer, while $\delta$ is a hyper-parameter we set to be as large as possible. But this does not effect the conclusion we will have in \eqref{limit-constant}.}.
+Apparently, $\delta$ has to satisfy,
+\begin{equation}\label{deltal-satisfy}
+  \delta = z \varepsilon
+\end{equation}
+where $z \in Z^{+}$. And this $z$ is a fixed value as a hyper-parameter.
 Now, we consider following limit,
 \begin{eqnarray}\label{limit-constant}
-    && \lim_{\varepsilon,\delta\rightarrow0} (1-\frac{1}{d/\varepsilon})^{d/\delta} \nonumber\\
-    \nonumber &=& \lim_{\varepsilon,\delta\rightarrow0} e^{d/\delta \ln(1-\frac{1}{d/\varepsilon})} \\
-    \nonumber &=& \lim_{\varepsilon,\delta\rightarrow0} e^{\frac{\ln(\frac{d-\varepsilon}{d})}{\delta/d}} \\
-    \nonumber &=& \lim_{\varepsilon,\delta\rightarrow0} e^{\frac{\frac{-1}{d-\varepsilon}}{1/d}} \\
-    \nonumber &=& e^{-1} \\
+    && \lim_{\delta=z\varepsilon,\varepsilon\rightarrow 0} (1-\frac{1}{d/\varepsilon})^{d/\delta} \nonumber\\
+    \nonumber &=& \lim_{\delta=z\varepsilon,\varepsilon\rightarrow 0} e^{d/\delta \ln(1-\frac{1}{d/\varepsilon})} \\
+    \nonumber &=& \lim_{\delta=z\varepsilon,\varepsilon\rightarrow 0} e^{\frac{\ln(\frac{d-\varepsilon}{d})}{\delta/d}} \\
+    \nonumber &=& \lim_{\varepsilon\rightarrow0} e^{\frac{\frac{d}{d-\varepsilon}\frac{-1}{d}}{z/d}} \\
+    \nonumber &=& e^{-1/z} \\
 \end{eqnarray}
 Put the conclusion of \eqref{limit-constant} into \eqref{p-tau}, we have,
 \begin{eqnarray}\label{final-p-inter}
     && P(x_\tau=x_n|x_r,x_g) = \lim_{\varepsilon,\delta\rightarrow0} P(\check{x}_\tau\overset{t}{=}\check{x}_n|\check{x}_r,\check{x}_g) \nonumber\\
     &=&
     \begin{cases}
-        1 - e^{-1} &\mbox{$x_r<x_n<x_g,x_g<x_n<x_r$}\\
+        1 - e^{-1/z} &\mbox{$x_r<x_n<x_g,x_g<x_n<x_r$}\\
         0 &\mbox{else}
     \end{cases}
 \end{eqnarray}
@@ -130,30 +134,35 @@ Now, we propose our update rules for the \textit{Discriminator} $D$ with paramet
 which means we try to make $\nabla_{x_{\tau}}D^{\theta}(x_{\tau})$ approach $\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}$. Lets take a look at $\nabla_{x_{\tau}}D^{\theta}(x_{\tau})$ at a specific point $x_n$,
 \begin{eqnarray}\label{d-at-xn}
     && \nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n) \nonumber\\
+    &=& \mathbb{E}_{\tau \sim U[0,1], x_r\sim\mathbb{P}_r,x_g\sim\mathbb{P}_g} \{\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}\} \nonumber\\
     &=& P(x_\tau=x_n|x_g<x_n<x_r) P(x_g<x_n<x_r) \nonumber\\
     && - P(x_\tau=x_n|x_r<x_n<x_g) P(x_r<x_n<x_g) \nonumber\\
 \end{eqnarray}
 which means the value of $\nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n)$ is determined by the probability of it gets positive update and negative update.
 Since \eqref{final-p-inter}, we know that
 \begin{equation}\label{p-inter-conditional-1}
-  P(x_\tau=x_n|x_g<x_n<x_r)=1 - e^{-1}
+  P(x_\tau=x_n|x_g<x_n<x_r)=1 - e^{-1/z}
 \end{equation}
 \begin{equation}\label{p-inter-conditional-2}
-  P(x_\tau=x_n|x_r<x_n<x_g)=1 - e^{-1}
+  P(x_\tau=x_n|x_r<x_n<x_g)=1 - e^{-1/z}
 \end{equation}
 Put \eqref{p-inter-conditional-1} \eqref{p-inter-conditional-2} into \eqref{d-at-xn}, we have,
 \begin{eqnarray}\label{explain-d-gradient}
     && \nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n) \nonumber\\
-    &=& [P(x_g<x_n<x_r) - P(x_r<x_n<x_g)](1 - e^{-1}) \nonumber\\
-    &=& [\int_{0}^{x_n}\mathbb{P}_g(x)dx \int_{x_n}^{1}\mathbb{P}_r(x)dx) \nonumber\\
-    && - \int_{0}^{x_n}\mathbb{P}_r(x)dx \int_{x_n}^{1}\mathbb{P}_g(x)dx)](1 - e^{-1}) \nonumber\\
-    &=& [\int_{x_n}^{1}\mathbb{P}_r(x)dx-\int_{x_n}^{1}\mathbb{P}_g(x)dx](1 - e^{-1})
+    &=& [P(x_g<x_n<x_r) - P(x_r<x_n<x_g)](1 - e^{-1/z}) \nonumber\\
+    &=& [P(x_g<x_n)P(x_n<x_r) \nonumber\\
+    && - P(x_r<x_n)P(x_n<x_g)](1 - e^{-1/z}) \nonumber\\
+    &=& [\int_{0}^{x_n}\mathbb{P}_g(x)dx \int_{x_n}^{1}\mathbb{P}_r(x)dx \nonumber\\
+    && - \int_{0}^{x_n}\mathbb{P}_r(x)dx \int_{x_n}^{1}\mathbb{P}_g(x)dx](1 - e^{-1/z}) \nonumber\\
+    &=& [\int_{x_n}^{1}\mathbb{P}_r(x)dx-\int_{x_n}^{1}\mathbb{P}_g(x)dx](1 - e^{-1/z})
 \end{eqnarray}
 Now, we can give the update rule of \textit{Generator} $G$ with parameter $\beta$ to be learnt, and we put \eqref{explain-d-gradient} in this update rule to have a clearer view on what $G$ is doing,
 \begin{eqnarray}\label{g-loss}
   && \beta \nonumber\\
   & \longrightarrow & \beta + \nabla_{\beta} \{ D^{\theta}(G^{\beta}(x_g)) \} \nonumber\\
-  & \longrightarrow & \beta + \{[\int_{x_g}^{1}\mathbb{P}_r(x)dx-\int_{x_g}^{1}\mathbb{P}_g(x)dx](1 - e^{-1})(\nabla_{\beta}G^{\beta}(x_g)) \} \nonumber\\
+  & \longrightarrow & \beta + \nabla_{\beta} \{ \frac{\partial D^{\theta}(G^{\beta}(x_g))}{\partial G^{\beta}(x_g)} \frac{\partial G^{\beta}(x_g)}{\partial \beta} \} \nonumber\\
+  & \longrightarrow & \beta + \{[\int_{x_g}^{1}\mathbb{P}_r(x)dx\nonumber\\
+  && -\int_{x_g}^{1}\mathbb{P}_g(x)dx](1 - e^{-1/z})(\nabla_{\beta}G^{\beta}(x_g)) \} \nonumber\\
 \end{eqnarray}
 which means wherever $x_g$ is, it is updating itself to make $\int_{x_g}^{1}\mathbb{P}_g(x)dx$ approaching $\int_{x_g}^{1}\mathbb{P}_r(x)dx$.
 One can just take a few cases to confirm this.
