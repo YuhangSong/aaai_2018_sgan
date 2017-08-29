@@ -31,25 +31,138 @@ Palo Alto, California 94303\\
 \begin{abstract}
 \end{abstract}
 
-\section{The Proposed $H$ Distance}
-
-We consider the one dimensional case as a start. Following is the optimal $H$ distance proposed in place of Wasserstein distance,
-\begin{equation}\label{H-distance}
-  H^{\ast}(x,\mathbb{P}_r,\mathbb{P}_g)=| \int_{x}^{1} \mathbb{P}_r(x') d x' - \int_{x}^{1} \mathbb{P}_g(x') d x' |
-\end{equation}
-while the Wasserstein distance is,
-
-\begin{equation}\label{H-distance}
-  H^{\ast}(x,\mathbb{P}_r,\mathbb{P}_g)=| \int_{x}^{1} \mathbb{P}_r(x') d x' - \int_{x}^{1} \mathbb{P}_g(x') d x' |
-\end{equation}
-where $x_{r}$ are real samples sampled from distribution $\mathbb{P}_{r}$, and $x_{g}$ are generated samples sampled from distribution $\mathbb{P}_{g}$,
+\section{The Proposed $S$ Distance}
+We consider the one dimensional case as a start, where $x_{r}$ are real samples sampled from distribution $\mathbb{P}_{r}$, and $x_{g}$ are generated samples sampled from distribution $\mathbb{P}_{g}$,
 \begin{equation}\label{x-r}
    x_{r} \sim \mathbb{P}_{r}
 \end{equation}
 \begin{equation}\label{x-g}
   x_{g} \sim \mathbb{P}_{g}
 \end{equation}
-Note that both $x_{r}$ and $x_{g}$ are normalized between $[0,1]$, so that the integral operation in \eqref{H-distance} can be conducted in $[0,1]$, instead of $[-\infty,+\infty]$. This distance is modeled for every $x$, which means we train the generative model $g$ to minimize $H^{\ast}$ at every $x_g$,
+Note that both $x_{r}$ and $x_{g}$ are normalized between $[0,1]$. For every $x_{r}, x_{g}$ pair, we sample $x_{\tau}$ between $x_{r}$ and $x_g$,
+\begin{equation}\label{x-epsilon}
+  x_{\tau} = \tau x_{r} + (1-\tau) x_g
+\end{equation}
+where
+\begin{equation}\label{epsilon}
+  \tau \sim U[0,1]
+\end{equation}
+Assuming $x_{\tau}$ follows a distribution given by $\mathbb{P}_{\tau}$,
+\begin{equation}\label{x-epsilon}
+  x_{\tau} \sim \mathbb{P}_{\tau}
+\end{equation}
+Apparently, $\mathbb{P}_{\tau}$ is related to $x_r$ and $x_g$. Here, we can impose a way to make $\mathbb{P}_{\tau}$ independent from $x_r$ and $x_g$, we will discuss this impose method latter, we assume the $\mathbb{P}_{\tau}$ here is independent from $x_r$ and $x_g$, and it is uniform on $x$ space.
+
+Following is the optimal $S$ distance proposed in place of Wasserstein distance,
+\begin{equation}\label{S-distance}
+  S^{\ast}(\mathbb{P}_r,\mathbb{P}_g)=\mathbb{E}_{x_\tau \sim \mathbb{P}_\tau} \{ | \int_{x_\tau}^{1} \mathbb{P}_r(x') d x' - \int_{x_\tau}^{1} \mathbb{P}_g(x') d x' | \}
+\end{equation}
+while the optimal Wasserstein distance is,
+\begin{equation}\label{W-distance}
+  W^{\ast}(\mathbb{P}_r,\mathbb{P}_g)=\sup_{\|f\|_L \leq 1} \{ \mathbb{E}_{x_r \sim \mathbb{P}_r} [f(x_r)] - \mathbb{E}_{x_g \sim \mathbb{P}_g} [f(x_g)] \}
+\end{equation}
+Apparently, both $S^{\ast}$ and $W^{\ast}$ distance will be minimized if the $\mathbb{P}_r$ and $\mathbb{P}_g$ are exactly same.
+To take a deeper insight of the advantage of the proposed $S^{\ast}$ distance, we consider the representation of these two distance at each $x$.
+This is crucial, since when updating generative model, it only observe the distance at a specific $x_g$ instead of having a whole sight of the distributions $\mathbb{P}_r$ and $\mathbb{P}_g$.
+The $S^{\ast}$ at $x$ is,
+\begin{equation}\label{S-distance-x}
+  S^{\ast}_{\mathbb{P}_r,\mathbb{P}_g}(x)= | \int_{x}^{1} \mathbb{P}_r(x') d x' - \int_{x}^{1} \mathbb{P}_g(x') d x' |
+\end{equation}
+while the Wasserstein distance at $x$ is,
+\begin{equation}\label{W-distance-x}
+  W^{\ast}_{\mathbb{P}_r,\mathbb{P}_g}(x)= f(x)= \mathbb{P}_r(x) - \mathbb{P}_g(x)
+\end{equation}
+We can see that $S^{\ast}_{\mathbb{P}_r,\mathbb{P}_g}(x)$ consider than how unbalance are the two distributions in a whole sight, while the $W^{\ast}_{\mathbb{P}_r,\mathbb{P}_g}(x)$ considers the unbalance of the two distributions only at this point.
+
+\section{Impose $\mathbb{P}_{\tau}$ to be independent from $x_r$ and $x_g$}
+Consider our problem on a discrete space with interval of $\varepsilon$, we give every notation of $x$ a check mark, i.e., $\check{x}$ to mark that they are discrete value by $\varepsilon$. Later on we will derive its limitation to have a general conclusion on the continuous space. If we sample $\breve{x}_\tau$ between $\check{x}_r$ and $\check{x}_g$ for $1$ time,
+\begin{equation}\label{d}
+  d=|\check{x}_r-\check{x}_g|
+\end{equation}
+\begin{equation}\label{p-epsilon-pr-pg}
+    P(\check{x}_\tau\overset{1}{=}\check{x}_n|\check{x}_r,\check{x}_g)=
+    \begin{cases}
+        \frac{1}{d/\varepsilon} &\mbox{$\check{x}_r<\check{x}_n<\check{x}_g,\check{x}_g<\check{x}_n<\check{x}_r$}\\
+        0 &\mbox{else}
+    \end{cases}
+\end{equation}
+If we sample it for $t$ times, where
+\begin{equation}\label{T}
+  t = d/{\delta}
+\end{equation}
+Here, $\delta$ is approaching to zero in the same order as $\varepsilon$ approaching zero.
+Then, we,
+\begin{eqnarray}\label{p-epsilon-pr-pg-T}
+    && P(x_\tau\overset{t}{=}x_n|x_r,x_g) \nonumber\\
+    \nonumber &=& 1 - (1-P(\check{x}_\tau\overset{1}{=}\check{x}_n|\check{x}_r,\check{x}_g))^t \\
+    \nonumber &=&
+    \begin{cases}
+        1 - (1-\frac{1}{d/\varepsilon})^{d/\delta} &\mbox{$\check{x}_r<\check{x}_n<\check{x}_g,\check{x}_g<\check{x}_n<\check{x}_r$}\\
+        0 &\mbox{else}
+    \end{cases}
+\end{eqnarray}
+Following consider this limit,
+\begin{eqnarray}\label{p-epsilon-pr-pg-T}
+    && \lim_{\varepsilon,\delta\rightarrow0} (1-\frac{1}{d/\varepsilon})^{d/\delta} \nonumber\\
+    \nonumber &=& \lim_{\varepsilon,\delta\rightarrow0} e^{d/\delta \ln(1-\frac{1}{d/\varepsilon})} \\
+    \nonumber &=& \lim_{\varepsilon,\delta\rightarrow0} e^{\frac{\ln(\frac{d-\varepsilon}{d})}{\delta/d}} \\
+    \nonumber &=& \lim_{\varepsilon,\delta\rightarrow0} e^{\frac{\frac{-1}{d-\varepsilon}}{1/d}} \\
+    \nonumber &=& e^{-1} \\
+\end{eqnarray}
+which means
+\begin{eqnarray}\label{final-p-inter}
+    && P(x_\tau=x_n|x_r,x_g) = \lim_{\varepsilon,\delta\rightarrow0} P(\check{x}_\tau\overset{t}{=}\check{x}_n|\check{x}_r,\check{x}_g) \nonumber\\
+    &=&
+    \begin{cases}
+        1 - e^{-1} &\mbox{$x_r<x_n<x_g,x_g<x_n<x_r$}\\
+        0 &\mbox{else}
+    \end{cases}
+\end{eqnarray}
+Now, we propose our update rules for the \textit{Discriminator} $D$ with parameter $\theta$ to be optimized,
+\begin{equation}\label{g-loss}
+  \theta \longrightarrow \theta + \nabla_{\theta} |\nabla_{x_{\tau}}D^{\theta}(x_{\tau})-\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}|^2
+\end{equation}
+Lets take a look at it at a specific point, i.e., $x_n$,
+\begin{eqnarray}\label{p-epsilon-pr-pg-T}
+    && \nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n) \nonumber\\
+    &=& P(x_\tau=x_n|x_g<x_n<x_r) P(x_g<x_n<x_r) \nonumber\\
+    && - P(x_\tau=x_n|x_r<x_n<x_g) P(x_r<x_n<x_g) \nonumber\\
+\end{eqnarray}
+Since \eqref{final-p-inter}, we know that
+\begin{equation}\label{p-inter-conditional-1}
+  P(x_\tau=x_n|x_g<x_n<x_r)=1 - e^{-1}
+\end{equation}
+\begin{equation}\label{p-inter-conditional-2}
+  P(x_\tau=x_n|x_r<x_n<x_g)=1 - e^{-1}
+\end{equation}
+Finally, we have,
+\begin{eqnarray}\label{p-epsilon-pr-pg-T}
+    && \nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n) \nonumber\\
+    &=& [P(x_g<x_n<x_r) - P(x_r<x_n<x_g)](1 - e^{-1}) \nonumber\\
+    &=& [\int_{0}^{x_n}\mathbb{P}_g(x)dx \int_{x_n}^{1}\mathbb{P}_r(x)dx) \nonumber\\
+    && - \int_{0}^{x_n}\mathbb{P}_r(x)dx \int_{x_n}^{1}\mathbb{P}_g(x)dx)](1 - e^{-1}) \nonumber\\
+    &=& [\int_{x_n}^{1}\mathbb{P}_r(x)dx-\int_{x_n}^{1}\mathbb{P}_g(x)dx](1 - e^{-1})
+\end{eqnarray}
+Now, we can give the update rule of \textit{Generator} $G$ with parameter $\beta$ to be learnt,
+\begin{equation}\label{g-loss}
+  \theta \longrightarrow \theta + \nabla_{\theta} |\nabla_{x_{\tau}}D^{\theta}(x_{\tau})-\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}|^2
+\end{equation}
+sssssssssssssssssssssssssssssss
+\begin{eqnarray}\label{p-epsilon-pr-pg-T}
+  \nonumber \mathbb{P}_{\tau|r,g} &=& 1 - (1-P(x_\tau=x_n|x_r,x_g))^t \\
+  &=& \lim_{\Delta t \rightarrow 0}1 - (1-\frac{1}{\|x_r-x_g\|} [x_r,x_g])^{\frac{\|x_r-x_g\|}{\Delta t}}
+\end{eqnarray}
+
+\begin{equation}
+  \mathbb{P}_{\tau} = \mathbb{P}_{\tau|r,g} \mathbb{P}_{r,g}
+\end{equation}
+
+\section{Store}
+
+\begin{equation}\label{H-distance}
+  H^{\ast}(x,\mathbb{P}_r,\mathbb{P}_g)=| \int_{x}^{1} \mathbb{P}_r(x') d x' - \int_{x}^{1} \mathbb{P}_g(x') d x' |
+\end{equation}
+, so that the integral operation in \eqref{H-distance} can be conducted in $[0,1]$, instead of $[-\infty,+\infty]$. This distance is modeled for every $x$, which means we train the generative model $g$ to minimize $H^{\ast}$ at every $x_g$,
 \begin{equation}\label{g-update-rules}
   \min_{g}\mathbb{E}_{x_g \sim \mathbb{P}_g} [H^{\ast}(x_g,\mathbb{P}_r,\mathbb{P}_g)]
 \end{equation}
@@ -115,27 +228,15 @@ and $x_{g}$ is sampled from $\mathbb{P}_{g}$,
   x_{g} \sim \mathbb{P}_{g}
 \end{equation}
 which is produced by a generative model $G^{\beta}$, with parameter vector $\beta$ to to be optimized.
-For every $x_{r}, x_{g}$ pair, we sample $x_{\epsilon}$ between $x_{r}$ and $x_g$,
-\begin{equation}\label{x-epsilon}
-  x_{\epsilon} = \epsilon x_{r} + (1-\epsilon) x_g
-\end{equation}
-where
-\begin{equation}\label{epsilon}
-  \epsilon \sim Uniform[0,1]
-\end{equation}
-Assuming $x_{\epsilon}$ follows a distribution given by $\mathbb{P}_{\epsilon}$,
-\begin{equation}\label{x-epsilon}
-  x_{\epsilon} \sim \mathbb{P}_{\epsilon}
-\end{equation}
-Apparently, $\mathbb{P}_{\epsilon}$ can be represented by $\mathbb{P}_r$ and $\mathbb{P}_g$, but in a tricky way.
 
 
 
 
 
-Then we build a model $D^{\theta}$ with parameter vector $\theta$. For every set of $\{ x_{r}, x_{g}, x_{\epsilon} \}$, the update rule of $\theta$ is,
+
+Then we build a model $D^{\theta}$ with parameter vector $\theta$. For every set of $\{ x_{r}, x_{g}, x_{\tau} \}$, the update rule of $\theta$ is,
 \begin{equation}\label{D-loss}
-  \theta \longrightarrow \theta + \nabla_{\theta} \|\nabla_{x_{\epsilon}}D^{\theta}(x_{\epsilon})-\frac{x_{r}-x_{g}}{\|x_{r}-x_{g}\|}\|^2
+  \theta \longrightarrow \theta + \nabla_{\theta} \|\nabla_{x_{\tau}}D^{\theta}(x_{\tau})-\frac{x_{r}-x_{g}}{\|x_{r}-x_{g}\|}\|^2
 \end{equation}
 which means the optimal $D^{\theta}$ has the following attribute,
 \begin{equation}\label{optimal-D}
@@ -159,7 +260,7 @@ the same as,
 
 I believe the distance we are minimizing for the new loss is,
 
-where $x_{\epsilon}$ is a random variable computed by,
+where $x_{\tau}$ is a random variable computed by,
 
 
 
