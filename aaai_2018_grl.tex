@@ -48,13 +48,13 @@ while the Wasserstein distance is defined to be,
   W(\mathbb{P}_r,\mathbb{P}_g)=\sup_{\|f\|_L \leq 1} \{ \mathbb{E}_{x_r \sim \mathbb{P}_r} [f(x_r)] - \mathbb{E}_{x_g \sim \mathbb{P}_g} [f(x_g)] \}
 \end{equation}
 Apparently, both $S$ and $W$ distance will be minimized if the $\mathbb{P}_r$ and $\mathbb{P}_g$ are identical.
-To take a deeper insight of the advantage of the proposed $S$ distance, we consider the representation of these two distance at one specific sample $x_g$.
-This is crucial, since when updating \textit{Generator} $G$, it only observe at a specific $x_g$, instead of having a whole sight of the distributions $\mathbb{P}_r$ and $\mathbb{P}_g$.
-The $S$ at $x_g$ is,
+In a GAN paradigm, \textit{Generator} $G$ updates itself at each sample $x_g$ to minimize the distance they are based on.
+To take a deeper insight of the advantage of the proposed $S$ distance, we consider what $G$ is trying to minimize at each sample $x_g$, when based on $S$ and $W$ distance respectively.
+When using $S$ distance, $G$ at $x_g$ is minimizing,
 \begin{equation}\label{s-distance-at-xg}
   S_{\mathbb{P}_r,\mathbb{P}_g}(x_g)= | \int_{x_g}^{1} \mathbb{P}_r(x) d x - \int_{x_g}^{1} \mathbb{P}_g(x) d x |
 \end{equation}
-while the $W$ at $x_g$ is,
+while using $W$ distance, $G$ at $x_g$ is minimizing,
 \begin{equation}\label{w-distance-xg}
   W_{\mathbb{P}_r,\mathbb{P}_g}(x_g) = f(x) \approx \mathbb{P}_r(x) - \mathbb{P}_g(x)
 \end{equation}
