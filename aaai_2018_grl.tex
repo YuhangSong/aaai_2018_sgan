@@ -7,29 +7,68 @@
 \usepackage{courier}  %Required
 \usepackage{url}  %Required
 \usepackage{graphicx}  %Required
-\usepackage{amsfonts}
-\usepackage{amsmath}
 \frenchspacing  %Required
 \setlength{\pdfpagewidth}{8.5in}  %Required
+\usepackage{amsfonts}
+\usepackage{amsmath}
+
+\newcommand{\namecite}[1]{\citeauthor{#1}~(\citeyear{#1})}
+
 \setlength{\pdfpageheight}{11in}  %Required
 %PDF Info Is Required:
   \pdfinfo{
-/Title (2017 Formatting Instructions for Authors Using LaTeX)
-/Author (AAAI Press Staff)}
+/Title (Learning Approximate Stochastic Transition Models)
+/Author (Michael L.\ Littman)}
 \setcounter{secnumdepth}{0}
  \begin{document}
 % The file aaai.sty is the style file for AAAI Press
 % proceedings, working notes, and technical reports.
 %
-\title{2017 Formatting Instructions \\for Authors Using \LaTeX{}}
-\author{AAAI Press\\
-Association for the Advancement of Artificial Intelligence\\
-2275 East Bayshore Road, Suite 160\\
-Palo Alto, California 94303\\
-}
+\title{Learning Approximate Stochastic Transition Models}
+% \author{Guan Wang \and Michael L.\ Littman\\
+% Department of Computer Science \\
+% Brown University\\
+% Providence, RI 02912}
+\author{Removed for Review}
 \maketitle
 \begin{abstract}
+abs
 \end{abstract}
+
+\section{Intoduction}
+
+Model-based approaches separate the reinforcement-learning (RL) problem into two components. The first component learns a transition model that predicts the next state from the current state and action. The second component uses that model to make decisions by looking ahead to predict the consequences of different courses of actions. This paper focuses on the first problem of acquiring the model, specifically addressing the development of a mechanism for learning to approximate a stochastic transition function.
+
+\section{Background}
+
+A Markov decision process (MDP) model of an environment consists of a set of states $S$ and actions $A$, a transition function $T:S\times A \rightarrow \Pi(S)$ mapping state--action pairs to a probability distribution over next states, and a reward function $R:S\times A \rightarrow \Re$.
+
+Since the focus of this paper is not on decision making but on learning the transition function, we simplify the transition function to $T(s,s')$, which represents the probability that state $s'$ will follow $s$. A separate function can be learned for each action $a\in A$. Although some authors have found there to be an advantage to representing the transitions jointly for all actions (cite Satinder paper), this issue is orthogonal to the representation issue we address here.
+
+To review methods for learning $T(s,s')$, we begin by separating out three representations for transition models. A \emph{query}
+% An \emph{explicit}
+model is one that can answer, for any $s,s'$ pair, the probability of $s'$ given $s$. Such a model can be represented as a table for the state space is relatively small (reference). It can also be captured by a dynamic Bayesian network (degris? others?).
+Some types of planners, such as ones based on policy iteration (cite Puterman, cite older DBN work), require access to these probabilities to compute expected values.
+% Such models can be easily learned in the tabular setting in which statistics are kept on all $s$, $s'$ pairs.
+Query models can be very challenging to work with and learn when the size of the state space if enormous, however, because looping over all the possible values of $s'$ can be too expensive. It is especially problematic when most $s$, $s'$ pairs have zero probability, since considering each of them is expensive and pointless.
+
+A \emph{sparse} model is a refinement of the query method that takes a state $s$ as input and returns a list of states $N(s)$ such that $s' \in N(s)$ iff $T(s,s')>0$. Such a representation can be used much more efficiently as it only needs to consider the non-zero entries of $T(s,s')$. Tabular and DBN methods can be used in this setting, but a general approach has yet to be articulated. In addition, they provide no advantage of the query model in environments in which $|N(s)|$ is intractably large.
+
+An alternative is a \emph{generative} model, which is a function $G$ that, given, $s$, produces $s'$
+%. In the case where the transition function is deterministic, $G$ can be exactly the transition function. That is, $G(s) = s'$ iff $T(s,s') = 1$. Such functions can be approximated using standard methods, using examples of $s$, $s'$ pairs as training data. When the transition function is stochastic, however, $G(s)$ itself becomes a random variable. A good $G$ is one in which the probability that $G(s)$ produces $s'$ is (close to) $T(s,s')$. (maybe say something about how we measure this difference. I think L1 distance makes sense since that's what's used in the simulation lemma.)
+%
+%Next, we describe different representations for $G$.
+% In the explicit category, there are tabular models (popular in the theoretical RL literature). They are very easy to learn but are only applicable when the set of states can be efficiently enumerated.
+% Dynamic Bayes net models represent transition models in a compact form. In principle, any graphical model learning algorithm (cite something?) can be used to learn a transition model of this form, but these algorithms are fairly specialized and have not been brought to bear in the RL setting. An exception is the work of Thomas DeGris, which learns the Bayes net structure in the form of a tree.
+% (Another possible exception: "Abstraction selection in model-based reinforcement learning", which learns another specialized representation.) (Mumble mumble, something about density estimation?)
+%
+Learning a generative model is a more classical supervised learning problem. Given examples of $s$, $s'$ pairs, learn a mapping such that $G(s)$ produces $s'$. When the target mapping is deterministic, many learning algorithms can be brought to bear. (Cite Traviste, Singh, other deep learning model-based work, old work from Moore and Atkeson) These learning algorithms can be applied to stochastic transition models, but, as we show, there are significant pitfalls to doing so. An exception is in control problems where the transition model has the form $s' \sim G(s) + \eta$, where the $\eta$ is state independent and typically small and zero mean noise, so that planning using $G(s)$ results in an approximation to planning with the stochastic model---the noise can be safely ignored during planning (probably some citations---LQR?).
+
+(Need to cite: UCT paper, sparse sampling paper, work on planning using Bayes net representation).
+
+\section{Background}
+
+GANs WGANs
 
 \section{The Proposed $S$ Distance}
 We consider the one dimensional case as a start, where $x_{r}$ are real samples sampled from distribution $\mathbb{P}_{r}$, and $x_{g}$ are generated samples sampled from distribution $\mathbb{P}_{g}$,
@@ -43,10 +82,11 @@ Note that both $x_{r}$ and $x_{g}$ are restricted between $[0,1]$. Following is 
 \begin{equation}\label{s-distance}
   S(\mathbb{P}_r,\mathbb{P}_g)=\mathbb{E}_{x_g \sim \mathbb{P}_g} \{ | \int_{x_g}^{1} \mathbb{P}_r(x) d x - \int_{x_g}^{1} \mathbb{P}_g(x) d x | \}
 \end{equation}
-while the Wasserstein distance is defined to be,
+While, the Wasserstein distance is defined to be,
 \begin{equation}\label{w-distance}
   W(\mathbb{P}_r,\mathbb{P}_g)=\sup_{\|f\|_L \leq 1} \{ \mathbb{E}_{x_r \sim \mathbb{P}_r} [f(x_r)] - \mathbb{E}_{x_g \sim \mathbb{P}_g} [f(x_g)] \}
 \end{equation}
+where $f$ belongs to a set of 1-Lipschitz functions.
 Apparently, both $S$ and $W$ distance will be minimized if the $\mathbb{P}_r$ and $\mathbb{P}_g$ are identical.
 In a GAN paradigm, \textit{Generator} $G$ updates itself at each sample $x_g$ to minimize the distance they are based on.
 To take a deeper insight of the advantage of the proposed $S$ distance, we consider what $G$ is trying to minimize at each sample $x_g$, when based on $S$ and $W$ distance respectively.
@@ -56,7 +96,7 @@ When using $S$ distance, $G$ at $x_g$ is minimizing,
 \end{equation}
 while using $W$ distance, $G$ at $x_g$ is minimizing,
 \begin{equation}\label{w-distance-xg}
-  W_{\mathbb{P}_r,\mathbb{P}_g}(x_g) = f(x) \approx \mathbb{P}_r(x) - \mathbb{P}_g(x)
+  W_{\mathbb{P}_r,\mathbb{P}_g}(x_g) = f(x_g) \approx \mathbb{P}_r(x_g) - \mathbb{P}_g(x_g)
 \end{equation}
 We can see that $S_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ consider how unbalance are the two distributions in a whole sight, while the $W_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ considers the unbalance of the two probabilities at this specific $x_g$. One can easily think of a $x_g$, where $W_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ is zero, but the distributions $\mathbb{P}_r$ and $\mathbb{P}_r$ are not identical, which means $W_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ is failing. But under this situation, $S_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ still gives a right direction for $x_g$ to update, since it observes the unbalance of $\mathbb{P}_r$ and $\mathbb{P}_r$ on each side of the $x_g$.
 
@@ -119,7 +159,7 @@ Now, we consider following limit,
 \end{eqnarray}
 Put the conclusion of \eqref{limit-constant} into \eqref{p-tau}, we have,
 \begin{eqnarray}\label{final-p-inter}
-    && P(x_\tau=x_n|x_r,x_g) = \lim_{\varepsilon,\delta\rightarrow0} P(\check{x}_\tau\overset{t}{=}\check{x}_n|\check{x}_r,\check{x}_g) \nonumber\\
+    && P(x_\tau\overset{t}{=}x_n|x_r,x_g) = \lim_{\varepsilon,\delta\rightarrow0} P(\check{x}_\tau\overset{t}{=}\check{x}_n|\check{x}_r,\check{x}_g) \nonumber\\
     &=&
     \begin{cases}
         1 - e^{-1/z} &\mbox{$x_r<x_n<x_g,x_g<x_n<x_r$}\\
@@ -128,23 +168,23 @@ Put the conclusion of \eqref{limit-constant} into \eqref{p-tau}, we have,
 \end{eqnarray}
 where we have switch back to the continuous space and have this general conclusion.
 Now, we propose our update rules for the \textit{Discriminator} $D$ with parameter $\theta$ to be optimized,
-\begin{equation}\label{g-loss}
+\begin{equation}\label{d-loss}
   \theta \longrightarrow \theta + \nabla_{\theta} \{ - |\nabla_{x_{\tau}}D^{\theta}(x_{\tau})-\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}|^2 \}
 \end{equation}
 which means we try to make $\nabla_{x_{\tau}}D^{\theta}(x_{\tau})$ approach $\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}$. Lets take a look at $\nabla_{x_{\tau}}D^{\theta}(x_{\tau})$ at a specific point $x_n$,
 \begin{eqnarray}\label{d-at-xn}
     && \nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n) \nonumber\\
     &=& \mathbb{E}_{\tau \sim U[0,1], x_r\sim\mathbb{P}_r,x_g\sim\mathbb{P}_g} \{\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}\} \nonumber\\
-    &=& P(x_\tau=x_n|x_g<x_n<x_r) P(x_g<x_n<x_r) \nonumber\\
-    && - P(x_\tau=x_n|x_r<x_n<x_g) P(x_r<x_n<x_g) \nonumber\\
+    &=& P(x_\tau\overset{t}{=}x_n|x_g<x_n<x_r) P(x_g<x_n<x_r) \nonumber\\
+    && - P(x_\tau\overset{t}{=}x_n|x_r<x_n<x_g) P(x_r<x_n<x_g) \nonumber\\
 \end{eqnarray}
 which means the value of $\nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n)$ is determined by the probability of it gets positive update and negative update.
 Since \eqref{final-p-inter}, we know that
 \begin{equation}\label{p-inter-conditional-1}
-  P(x_\tau=x_n|x_g<x_n<x_r)=1 - e^{-1/z}
+  P(x_\tau\overset{t}{=}x_n|x_g<x_n<x_r)=1 - e^{-1/z}
 \end{equation}
 \begin{equation}\label{p-inter-conditional-2}
-  P(x_\tau=x_n|x_r<x_n<x_g)=1 - e^{-1/z}
+  P(x_\tau\overset{t}{=}x_n|x_r<x_n<x_g)=1 - e^{-1/z}
 \end{equation}
 Put \eqref{p-inter-conditional-1} \eqref{p-inter-conditional-2} into \eqref{d-at-xn}, we have,
 \begin{eqnarray}\label{explain-d-gradient}
@@ -168,4 +208,126 @@ which means wherever $x_g$ is, it is updating itself to make $\int_{x_g}^{1}\mat
 One can just take a few cases to confirm this.
 The absolute error when updating $G$ is actually modelling the proposed $S$ distance in \eqref{s-distance} \eqref{s-distance-at-xg}.
 
+\section{Between SGAN and Gradient Penalty in WGAN}
+
+Gradient penalty WGAN (GP-WGAN) has been proposed as the state-of-the-art GAN. In GP-WGAN, they proposed adding a gradient penalty loss to the original loss of $D$ in WGAN, to impose 1-Lipschitz constrain. The gradient penalty is defined as,
+\begin{equation}\label{gp-loss}
+    \theta \longrightarrow \theta + \nabla_{\theta} \{ - (|\nabla_{x_{\iota}}D^{\theta}(x_{\iota})|-1)^2 \}
+\end{equation}
+where $x_\iota$ is defined similar as $x_\tau$ in our SGAN,
+\begin{equation}\label{x-iota}
+  x_{\iota} = \iota x_{r} + (1-\iota) x_g
+\end{equation}
+\begin{equation}\label{iota}
+  \iota \sim U[0,1]
+\end{equation}
+
+
+\section{Experimental Comparisons}
+
+Comparison algorithms:
+\begin{enumerate}
+\item Tabular learner.
+\item (Can we do a Bayes net learner?)
+\item Deterministic deep net.
+\item WGAN.
+\item WGAN with rejection.
+\item WGAN with separately learned rejection.
+\end{enumerate}
+
+Comparison environments:
+\begin{enumerate}
+\item Random 1d walk: $n$ bits, Pr(right) = 2/3, Pr(left) = 1/3, wrap around.
+\item Random 1d flips: $n$ bits. Next state is generated by picking a random bit position and flipping it.
+\item Russell Norvig grid dynamics with no obstacles. (Pr up is .8, right is .1, left is .1, down is 0. Grid is maybe 5x5?).
+\item Russell Norvig grid dynamics with obstacles.
+\item Marbles!
+\end{enumerate}
+
+\subsection{Results}
+
+For a, we expect 1 and perhaps 2 to do well. 3 will fail in spite of the simplicity, because it will turn 0s and 1s into fractional values. Not sure about 4, 5, 6, but we're definitely hoping 6 is robust even for large $n$. We might want to try $n \in \{5, 10, 20\}$.
+
+For b, if we try $n \in \{5,10,20\}$, 1 should fail. There are simply too many reachable states to expect to see them. Not sure about 2.
+
+I'm hoping that c and d will have similar results, in which case we probably just want to report d (since it adds the visual element).
+
+Finally, if e works, that's a great way to end.
+
+For a--d, we can measure how good the model is by picking a starting state, running the learned model for $k$ steps, perhaps rounding to the nearest non-fractional representation, and running the real dynamics for $k$ steps and measuring the KL divergence or L1 distance.
+
+RESULTS TABLE.
+
+Note that the table measures the L1 distance between the generated and real distributions. The measurement is conducted with 2000 samples (filtered to 1000 samples), and averaged under 50 times measurement.
+
+E gives about 100\% improvement when the domain is image (1D grid and 2D grid).
+E gives no improvement when the domain is vector. F gives very slight improvement (about 5\%) without E. F gives 40\% improvement with E under the domain of image. F gives no improvement with E under the domain of vector.
+
+It makes sense that the autoencoder only helps when dealing with images because the autoencoder is correcting the input using an abstraction. You can think of it like this: If the input space is high-dimensional, and the autoencoder has a bottleneck, it has to map a bunch of similar values to the same internal representation before reconstructing. This results in slightly corrupted generated images getting mapped to the same internal representation as their corresponding uncorrupted generated images. In the bitvector case, there is less room for this abstraction to occur, because the input space is small.
+
+\section{Thinking About Loss Functions}
+
+Here's my argument for why it should work. Let's say the generator outputs a bunch of possible answers $x_1,\ldots,x_k$. The real distribution assigns these outcomes probabilities of $p_1,\ldots,p_k$, and the generator assigns them $g_1,\ldots,g_k$.
+
+We randomly choose $s \sim \mbox{\rm Uniform}(\{-1,1\})$. If $s = 1$, draw $i \sim p_1,\ldots,p_k$. Otherwise, if $s = -1$, $i \sim g_1,\ldots,g_k$. Now, we send $x_i$ to the discriminator. It outputs $d \in \{-1,1\}$ and incurs a loss of $|d-s| = 1-ds$. That is, it's guessing whether the source of $x_i$ was the real data ($1$) or the generator ($-1$).
+
+The discriminator is a mapping from $x_i$ to $\{-1,1\}$. That is, we can capture the discriminator with a vector $d_1,\ldots,d_k$. What is the loss for $d_1,\ldots,d_k$?
+\begin{eqnarray*}
+\lefteqn{\frac{1}{2} \sum_i p_i (1-d_i) + \frac{1}{2} \sum_i g_i (1+d_i)}\\
+&=& \frac{1}{2} \sum_i (p_i - p_i d_i + g_i + g_i d_i)\\
+&=& \frac{1}{2} \sum_i d_i (g_i-p_i) + \frac{1}{2} \sum_i p_i + \frac{1}{2} \sum_i g_i \\
+&=& \frac{1}{2} \sum_i d_i (g_i-p_i) + 1
+\end{eqnarray*}
+
+What $d$ vector minimizes this loss? It is $d_i = 1$ if $p_i>g_i$, $d_i = -1$ otherwise. That is, when the discriminator sees $x_i$, it should guess $1$ (``real'') if the probability that the real distribution assigns to $x_i$ is larger than that assigned to it by the generator.
+
+If it chooses this $d$ vector, the loss becomes:
+$$
+-\frac{1}{2} \sum_i |g_i-p_i| + 1.
+$$
+What $g$ maximizes this loss? Setting $g_i=p_i$ causes the loss to be $1$. Any deviation from this choice will decrease the loss. Basically, the discriminator gets an advantage whenever the two probabilities deviate because it can be right more often by choosing the answer that assigns that example higher probability.
+
+\section{Future Work}
+
+Planning using the learned models.
+
+% christopher_grimm@brown.edu
+
+\bibliographystyle{aaai}
+\bibliography{mlittman}
+
+
 \end{document}
+
+
+6 pages, plus one for references
+
+
+Here's an idea for a reward language that subsumes GLTL and standard reward functions. Grammar:
+A value function for a task assigns a numeric value to a branching future of states and actions. V_task(T). The task's target behavior is that which induces a branching future of states and actions with the highest possible value.
+Each state is represented by a vector of features Phi(s). Any feature can be associated with a value.
+If F and G are value functions, then max(F,G) is a reward function, as is min(F,G) and F+G.
+
+\subsubsection{my subsubsection}
+
+\subsection{My subsection}
+
+We present a compositional representation for complex tasks that is compatible with environments represented as Markov decision processes~\cite{Puterman94}. It subsumes the standard reward-function representation used in MDPs as well as the Geometric Linear Temporal Logic representation proposed by \namecite{littman17}. Like the work on rewarding behaviors~\cite{bacchus96}, it combines numeric rewards and temporal logic representations.
+
+\subsection{Examples}
+
+Get to the goal without
+
+\subsection{Formal Definition}
+
+\section{Properties}
+
+how to plan, how to do RL. explicit task representation is needed for the approaches we describe.
+
+\section{Conclusion}
+
+In a companion paper, we address the problem of learning an LTR task from human-delivered feedback over a series of trials.
+
+\section{Related Work}
+
+The algebraic approach to task representations explored in this work is in the same spirit of some existing work such as the analysis of optimal-policy preserving reward-function transformations of \namecite{ng99} and the compositional options framework of \namecite{silver12}. 
