@@ -72,25 +72,57 @@ Learning a generative model is a more classical supervised learning problem. Giv
 
 GANs WGANs
 
-\section{SGAN}
+\section{Model Stochastic Transition with SGAN}
 
+To model stochastic transition in model-base RL with generative models, the basic paradigm is having a \textit{Generator} $G$, which takes in current state $\bar{x}$ and a random noise $\mathfrak{n}$, and generate a possible next state $x_g$,
+\begin{equation}\label{g-model}
+    x_g = G^{\mu}(\bar{x},\mathfrak{n})
+\end{equation}
+where $\mu$ is the parameter to learned in $G$.
+Assuming $x_g$ under $\bar{x}$ follows the distribution $\mathbb{P}^{\bar{x}}_{g}$, while real transition $x_r$ under $\bar{x}$ follows the distribution $\mathbb{P}^{\bar{x}}_{r}$,
+the ultimate goals are tow-folders,
+\begin{itemize}
+    \item $x_g$ has higher probability to be a valid state. For example, for 2D grid world, generate less next state with two agents or blurry agent. This goal is measured and reported in this paper as valid percentage $VP$.
+    \item $\mathbb{P}^{\bar{x}}_{g}$ should approach $\mathbb{P}^{\bar{x}}_{r}$ as close as possible. This goal is measured and reported in this paper with L1 loss.
+\end{itemize}
+To achieve this, there is another model called \textit{Discriminator} $D$, which takes in current state $\bar{x}$ and generated next state $x_g$ or real next state $x_r$, and produces a scalar to evaluate if the input transition pair is 'good' under the concept of a specific distance,
+\begin{equation}\label{d-model}
+    distance = D^{\theta}(\bar{x},\{x_r~or~x_g\})
+\end{equation}
+where $\mu$ is the parameter to learned in $G$.
+Based on the different distance $D$ are measuring, different GAN
+The first goal is a in-build goal for traditional Generative adversarial network (GAN), in which the state-of-the-art Wasserstein GAN with gradient penalty (GP-WGAN) can achieve the best $VP$. However, for the traditional GANs, the second goal is not specially addressed theoretically, as well as verified to be poor in out experiments.
+This motivates us to propose a novel distance
 \begin{algorithm}
-    \caption{SGAN. We use default values of $C=5$, $B=32$, $\alpha=0.0001$, $\beta_1=0.0$, $\beta_2=0.9$.}
+    \caption{SGAN. We use default values of $C=5$, $B=32$, $\alpha=0.0001$, $\beta_1=0.0$, $\beta_2=0.9$. And $\delta$ is computed for different domains.}
     \label{sgan}
 
-    \textbf{Require:} The number of critic iterations per generator iteration $C$, the batch size $B$, Adam hyper-parameters $\alpha$, $\beta_1$, $\beta_2$.
+    \textbf{Require:} The number of critic iterations per generator iteration $C$, the batch size $B$, Adam hyper-parameters $\alpha$, $\beta_1$, $\beta_2$, hyper-parameter $\delta$.
 
-    \textbf{Require:} Initial discriminator parameters $\theta_0$, initial generator parameters $\mu_0$.
+    \textbf{Require:} Initial \textit{Discriminator} $D$ parameters $\theta_0$, initial \textit{Generator} $G$ parameters $\mu_0$.
 \begin{algorithmic}[1]
     \STATE Load offline-DHP model to initialize model with parameter vectors: $\{  \theta_{\hat{\nu}}, \theta_{\hat{\pi}}, \theta_{V} \}$;
     \WHILE{$\theta$ has not converged}
         \FOR{$c=1,\cdots,C$}
             \FOR{$b=1,\cdots,B$}
                 \STATE Sample real transition pair $\bar{x}\rightarrow x_r$, where $x_r \sim \mathbb{P}_r^{\bar{x}}$.
-                \STATE Sample latent variable $\mathfrak{n} \sim U[0,1]$,
+                \STATE Sample latent variable $\mathfrak{n} \sim U[0,1]$.
                 \STATE $x_g\leftarrow G^{\mu}(\bar{x},\mathfrak{n})$
+                \STATE $d \leftarrow \|x_r-x_g\|$
+                \STATE $T_b \leftarrow d/\delta$
+                \FOR{$t=1,\cdots,T_b$}
+                    \STATE Sample $\tau \sim U[0,1]$
+                    \STATE $x_\tau \leftarrow \tau x_{r} + (1-\tau) x_g$
+                    \STATE $L_d^{(b,t)} \leftarrow \|\nabla_{x_{\tau}}D^{\theta}(\bar{x},x_{\tau})-\frac{x_{r}-x_{g}}{\|x_{r}-x_{g}\|}\|^2 \}$
+                \ENDFOR
             \ENDFOR
+            \STATE $\theta \leftarrow \textrm{Adam}(\nabla_{\theta}\frac{1}{B}\sum_{b=1}^{B}\frac{1}{T_b}\sum_{t=1}^{T_b}L_d^{(b,t)}, \theta, \alpha, \beta_1, \beta_2)$
         \ENDFOR
+        \FOR{$b=1,\cdots,B$}
+            \STATE Sample latent variable $\mathfrak{n} \sim U[0,1]$.
+            \STATE $L_g^{(b)} \leftarrow -D^{\theta}(G^{\mu}(\bar{x},\mathfrak{n}))$
+        \ENDFOR
+        \STATE $\mu \leftarrow \textrm{Adam}(\nabla_{\theta}\frac{1}{B}\sum_{b=1}^{B}L_g^{(b)}, \mu, \alpha, \beta_1, \beta_2)$
     \ENDWHILE
 \end{algorithmic}
 \end{algorithm}
@@ -141,9 +173,9 @@ where
 \end{equation}
 Following, we consider our problem on a discrete space with interval of $\varepsilon\rightarrow 0$, we give every notation of $x$ a check mark, i.e., $\check{x}$, to mark that they are discrete value under interval $\varepsilon$.
 Later on, we will derive limitation on $\varepsilon\rightarrow 0$, so that we can have a general conclusion on the continuous space.
-Now consider a event denoted by: $\check{x}_\tau\overset{t}{=}\check{x}_n$, which means,
+Now consider a event denoted by: $\check{x}_\tau\overset{T}{=}\check{x}_n$, which means,
 \begin{itemize}
-  \item Sample $\check{x}_\tau$ for $t$ times, $\check{x}_n$ got sampled as $\check{x}_\tau$ at least for one time.
+  \item Sample $\check{x}_\tau$ for $T$ times, $\check{x}_n$ got sampled as $\check{x}_\tau$ at least for one time.
 \end{itemize}
 To be clear, $\check{x}_\tau$ $\check{x}_r$, $\check{x}_g$ are all random variables, and $\check{x}_n$ is a specific point.
 Apparently, we have,
@@ -158,13 +190,13 @@ where
 \begin{equation}\label{d}
   d=|\check{x}_r-\check{x}_g|
 \end{equation}
-If we sample $\check{x}_\tau$ for $t$ times, where
+If we sample $\check{x}_\tau$ for $T$ times, where
 \begin{equation}\label{T}
-  t = d/{\delta}
+  T = d/{\delta}
 \end{equation}
 Then, we have,
 \begin{eqnarray}\label{p-tau}
-    && P(\check{x}_\tau\overset{t}{=}\check{x}_n|\check{x}_r,\check{x}_g) \nonumber\\
+    && P(\check{x}_\tau\overset{T}{=}\check{x}_n|\check{x}_r,\check{x}_g) \nonumber\\
     &=& 1 - (1-P(\check{x}_\tau\overset{1}{=}\check{x}_n|\check{x}_r,\check{x}_g))^t \nonumber\\
     &=&
     \begin{cases}
@@ -188,7 +220,7 @@ Now, we consider following limit,
 \end{eqnarray}
 Put the conclusion of \eqref{limit-constant} into \eqref{p-tau}, we have,
 \begin{eqnarray}\label{final-p-inter}
-    && P(x_\tau\overset{t}{=}x_n|x_r,x_g) = \lim_{\varepsilon,\delta\rightarrow0} P(\check{x}_\tau\overset{t}{=}\check{x}_n|\check{x}_r,\check{x}_g) \nonumber\\
+    && P(x_\tau\overset{T}{=}x_n|x_r,x_g) = \lim_{\varepsilon,\delta\rightarrow0} P(\check{x}_\tau\overset{T}{=}\check{x}_n|\check{x}_r,\check{x}_g) \nonumber\\
     &=&
     \begin{cases}
         1 - e^{-1/z} &\mbox{$x_r<x_n<x_g,x_g<x_n<x_r$}\\
@@ -204,16 +236,16 @@ which means we try to make $\nabla_{x_{\tau}}D^{\theta}(x_{\tau})$ approach $\fr
 \begin{eqnarray}\label{d-at-xn}
     && \nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n) \nonumber\\
     &=& \mathbb{E}_{\tau \sim U[0,1], x_r\sim\mathbb{P}_r,x_g\sim\mathbb{P}_g} \{\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}\} \nonumber\\
-    &=& P(x_\tau\overset{t}{=}x_n|x_g<x_n<x_r) P(x_g<x_n<x_r) \nonumber\\
-    && - P(x_\tau\overset{t}{=}x_n|x_r<x_n<x_g) P(x_r<x_n<x_g) \nonumber\\
+    &=& P(x_\tau\overset{T}{=}x_n|x_g<x_n<x_r) P(x_g<x_n<x_r) \nonumber\\
+    && - P(x_\tau\overset{T}{=}x_n|x_r<x_n<x_g) P(x_r<x_n<x_g) \nonumber\\
 \end{eqnarray}
 which means the value of $\nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n)$ is determined by the probability of it gets positive update and negative update.
 Since \eqref{final-p-inter}, we know that
 \begin{equation}\label{p-inter-conditional-1}
-  P(x_\tau\overset{t}{=}x_n|x_g<x_n<x_r)=1 - e^{-1/z}
+  P(x_\tau\overset{T}{=}x_n|x_g<x_n<x_r)=1 - e^{-1/z}
 \end{equation}
 \begin{equation}\label{p-inter-conditional-2}
-  P(x_\tau\overset{t}{=}x_n|x_r<x_n<x_g)=1 - e^{-1/z}
+  P(x_\tau\overset{T}{=}x_n|x_r<x_n<x_g)=1 - e^{-1/z}
 \end{equation}
 Put \eqref{p-inter-conditional-1} \eqref{p-inter-conditional-2} into \eqref{d-at-xn}, we have,
 \begin{eqnarray}\label{explain-d-gradient}
@@ -250,7 +282,7 @@ where $x_\iota$ is defined similar as $x_\tau$ in our SGAN,
 \begin{equation}\label{iota}
   \iota \sim U[0,1]
 \end{equation}
-The only difference is that they sample $x_\iota$ only once for each $x_r,x_g$ pair, but we sample $x_\tau$ for $t$ times for each $x_r,x_g$ pair, recall \eqref{T}.
+The only difference is that they sample $x_\iota$ only once for each $x_r,x_g$ pair, but we sample $x_\tau$ for $T$ times for each $x_r,x_g$ pair, recall \eqref{T}.
 The motivation when they propose this gradient penalty is the optimal $D$ in WGAN,
 \begin{equation}\label{optimal-d-in-wgan}
   \mathbb{E}_{x_r\sim\mathbb{P}_r,x_g\sim\mathbb{P}_g} \{\nabla_{x_{\iota}}D^{\ast}(x_\iota)=\frac{x_r-x_g}{|x_r-x_g|}\}
@@ -273,7 +305,7 @@ We think that is why the gradient penalty in \eqref{gp-loss} only consider impos
 We also have experiment shows that when impose \eqref{gp-loss-direction} as a gradient penalty in WGAN, or say, impose both direction and magnitude towards $D^{\ast}$, WGAN is failing.
 
 Apparently, if we try to impose both direction and magnitude towards $D^{\ast}$, we are naturally fall into the concept of $S$ distance, which has been explicit in this paper.
-And the sampling $t$ times become crucial to track the expectation of $\nabla_{x_{\tau}}D^{\theta}(x_{\tau})$, as also has been explicit.
+And the sampling $T$ times become crucial to track the expectation of $\nabla_{x_{\tau}}D^{\theta}(x_{\tau})$, as also has been explicit.
 When we are doing this, the assumptions for WGAN are not holding any more, so we are not imposing a optimal $D$ under W distance concept any more.
 That is also why we can omit the basic update rules of WGAN's $D$.
 
