@@ -10,412 +10,404 @@
 \frenchspacing  %Required
 \setlength{\pdfpagewidth}{8.5in}  %Required
 \usepackage{amsfonts}
+\usepackage{amssymb}
 \usepackage{amsmath}
+\usepackage{amsthm}
 \usepackage{algorithm}
 \usepackage{algorithmic}
-
+\usepackage[colorinlistoftodos,prependcaption,textsize=tiny]{todonotes}
+\newtheorem{theorem}{Theorem}
+%\newtheorem{proof}{Proof}
 \newcommand{\namecite}[1]{\citeauthor{#1}~(\citeyear{#1})}
 
 \setlength{\pdfpageheight}{11in}  %Required
 %PDF Info Is Required:
   \pdfinfo{
-/Title (Learning Approximate Stochastic Transition Models)
-/Author (Michael L.\ Littman)}
+/Title (Summable Reparameterizations of Wasserstein Critics in the One-Dimensional Setting)
+/Author (us)}
 \setcounter{secnumdepth}{0}
  \begin{document}
 % The file aaai.sty is the style file for AAAI Press
 % proceedings, working notes, and technical reports.
 %
-\title{Learning Approximate Stochastic Transition Models}
-% \author{Guan Wang \and Michael L.\ Littman\\
-% Department of Computer Science \\
-% Brown University\\
-% Providence, RI 02912}
-\author{\textbf{Yuhang Song}$^1$, Christopher Grimm$^2$, Xianming Wang$^3$, \textbf{Michael L. Littman}$^4$ \\
-  $^{1}$\textbf{Beijing University of Aeronautics and Astronautics}, $^{2}$\textbf{University of Michigan}, \\ $^{3}$\textbf{Renmin University of China}, $^{4}$\textbf{Brown University}\\
-  yuhangsong@buaa.edu.cn, crgrimm@umich.edu, xianmingwang@ruc.edu.cn, michael\_littman@brown.edu}
+\title{Summable Reparameterizations of Wasserstein Critics\\  in the One-Dimensional Setting}
+\author{Christopher Grimm$^1$, \textbf{Yuhang Song}$^2$, \textbf{Michael L. Littman}$^3$ \\
+  $^{1}$\textbf{University of Michigan}, $^{2}$\textbf{Beihang University},  $^{3}$\textbf{Brown University}\\
+  crgrimm@umich.edu, yuhangsong@buaa.edu.cn, michael\_littman@brown.edu}
 \maketitle
 \begin{abstract}
-abs
+Generative adversarial networks (GANs) are an exciting alternative to algorithms for solving density estimation problems---using data to assess how likely samples are to be drawn from the same distribution. Instead of explicitly computing these probabilities, GANs learn a generator that can match the given probabilistic source. This paper looks particularly at this matching capability in the context of problems with one-dimensional outputs. We identify a class of function decompositions with properties that make them well suited to the critic role in a leading approach to GANs known as Wasserstein GANs. We show that Taylor and Fourier series decompositions belong to our class, provide examples of these critics outperforming standard GAN approaches, and suggest how they can be scaled to higher dimensional problems in the future.
 \end{abstract}
 
-\section{Intoduction}
+\section{Introduction}
+Generative Adversarial Networks (GANs), introduced by \namecite{goodfellow2014generative}, have quickly become a leading technique for learning to generate data points matching samples from a distribution. GANs produce samples without directly modeling the target probability distribution. They do so by jointly training two neural networks: a \emph{generator}, which attempts to produce synthetic data points in a way that is consistent with the source distribution, and a \emph{discriminator}, which seeks to determine whether any given data point was drawn from the source distribution or the generated one.
 
-Model-based approaches separate the reinforcement-learning (RL) problem into two components. The first component learns a transition model that predicts the next state from the current state and action. The second component uses that model to make decisions by looking ahead to predict the consequences of different courses of actions. This paper focuses on the first problem of acquiring the model, specifically addressing the development of a mechanism for learning to approximate a stochastic transition function.
+This joint training procedure is difficult to stabilize and many conceptual variants of the GAN framework have been proposed to improve results. We focus specifically on one such variant: the Wasserstein GAN or wGAN~\cite{Arjovsky2017WassersteinG}. While the standard GAN framework is derived as a minimax game between two agents, the wGAN framework reformulates the problem in terms of minimizing a distance metric between two probability distributions. Particularly, wGAN is formulated using the dual form of the Earth-Mover's distance, which can be reasonably approximated by a neural network. This construction results in a similar two-network setup, with one network acting as a generator and another acting as a \emph{critic}---its role is to maintain an estimate of the Earth-Mover's distance between the generator's distribution and the target distribution in a functional form that can be used as a guide to improving the generator.
 
-\section{Background}
+Informally, Earth-Mover's distance between two probability distributions can be thought of as the amount of ``work'' that would go into transporting probability mass within each distribution to make them indistinguishable. A particularly nice property of Earth-Mover's distance is that, under mild constraints, it has a defined gradient almost-everywhere \cite{Arjovsky2017WassersteinG}, making it ideal for gradient-based optimization. To optimize over the space of critics, the optimizer must ensure that the functions it produces are $k$-Lipschitz---that the norm of their gradients is less than some scalar $k$ over the domain. A popular approach toward enforcing this constraint~\cite{Gulrajani2017ImprovedTO} involves assigning a penalty to functions that violate it on a subset of the domain. While this approach has been shown to produce visually appealing results on a variety of popular image benchmarks \cite{Gulrajani2017ImprovedTO}, there is no guarantee that the critic network will converge to the optimal critic. This failure of the critic to achieve optimality can result in generators that diverge or suffer from mode-collapse. In this work, we introduce a reparameterization of the critic network in the one-dimensional setting that has guarantees on its convergence. We show that this reparameterized critic performs better than standard gradient-penalty wGAN approaches on a set of one-dimensional simulated domains.
 
-A Markov decision process (MDP) model of an environment consists of a set of states $S$ and actions $A$, a transition function $T:S\times A \rightarrow \Pi(S)$ mapping state--action pairs to a probability distribution over next states, and a reward function $R:S\times A \rightarrow \Re$.
-
-Since the focus of this paper is not on decision making but on learning the transition function, we simplify the transition function to $T(s,s')$, which represents the probability that state $s'$ will follow $s$. A separate function can be learned for each action $a\in A$. Although some authors have found there to be an advantage to representing the transitions jointly for all actions (cite Satinder paper), this issue is orthogonal to the representation issue we address here.
-
-To review methods for learning $T(s,s')$, we begin by separating out three representations for transition models. A \emph{query}
-% An \emph{explicit}
-model is one that can answer, for any $s,s'$ pair, the probability of $s'$ given $s$. Such a model can be represented as a table for the state space is relatively small (reference). It can also be captured by a dynamic Bayesian network (degris? others?).
-Some types of planners, such as ones based on policy iteration (cite Puterman, cite older DBN work), require access to these probabilities to compute expected values.
-% Such models can be easily learned in the tabular setting in which statistics are kept on all $s$, $s'$ pairs.
-Query models can be very challenging to work with and learn when the size of the state space if enormous, however, because looping over all the possible values of $s'$ can be too expensive. It is especially problematic when most $s$, $s'$ pairs have zero probability, since considering each of them is expensive and pointless.
-
-A \emph{sparse} model is a refinement of the query method that takes a state $s$ as input and returns a list of states $N(s)$ such that $s' \in N(s)$ iff $T(s,s')>0$. Such a representation can be used much more efficiently as it only needs to consider the non-zero entries of $T(s,s')$. Tabular and DBN methods can be used in this setting, but a general approach has yet to be articulated. In addition, they provide no advantage of the query model in environments in which $|N(s)|$ is intractably large.
-
-An alternative is a \emph{generative} model, which is a function $G$ that, given, $s$, produces $s'$
-%. In the case where the transition function is deterministic, $G$ can be exactly the transition function. That is, $G(s) = s'$ iff $T(s,s') = 1$. Such functions can be approximated using standard methods, using examples of $s$, $s'$ pairs as training data. When the transition function is stochastic, however, $G(s)$ itself becomes a random variable. A good $G$ is one in which the probability that $G(s)$ produces $s'$ is (close to) $T(s,s')$. (maybe say something about how we measure this difference. I think L1 distance makes sense since that's what's used in the simulation lemma.)
-%
-%Next, we describe different representations for $G$.
-% In the explicit category, there are tabular models (popular in the theoretical RL literature). They are very easy to learn but are only applicable when the set of states can be efficiently enumerated.
-% Dynamic Bayes net models represent transition models in a compact form. In principle, any graphical model learning algorithm (cite something?) can be used to learn a transition model of this form, but these algorithms are fairly specialized and have not been brought to bear in the RL setting. An exception is the work of Thomas DeGris, which learns the Bayes net structure in the form of a tree.
-% (Another possible exception: "Abstraction selection in model-based reinforcement learning", which learns another specialized representation.) (Mumble mumble, something about density estimation?)
-%
-Learning a generative model is a more classical supervised learning problem. Given examples of $s$, $s'$ pairs, learn a mapping such that $G(s)$ produces $s'$. When the target mapping is deterministic, many learning algorithms can be brought to bear. (Cite Traviste, Singh, other deep learning model-based work, old work from Moore and Atkeson) These learning algorithms can be applied to stochastic transition models, but, as we show, there are significant pitfalls to doing so. An exception is in control problems where the transition model has the form $s' \sim G(s) + \eta$, where the $\eta$ is state independent and typically small and zero mean noise, so that planning using $G(s)$ results in an approximation to planning with the stochastic model---the noise can be safely ignored during planning (probably some citations---LQR?).
-
-(Need to cite: UCT paper, sparse sampling paper, work on planning using Bayes net representation).
 
 \section{Background}
 
-GANs WGANs
+This section provides necessary mathematical background and also summarizes related work.
 
-\section{Model Stochastic Transition with SGAN}
+\subsection{Generative Adversarial Networks}
 
-To model stochastic transition in model-base RL with generative models, the basic paradigm is having a \textit{Generator} $G$, which takes in current state $\bar{x}$ and a random noise $\mathfrak{n}$, and generate a possible next state $x_g$,
-\begin{equation}\label{g-model}
-    x_g = G^{\mu}(\bar{x},\mathfrak{n})
-\end{equation}
-where $\mu$ is the parameter to learned in $G$.
-Assuming $x_g$ under $\bar{x}$ follows the distribution $\mathbb{P}^{\bar{x}}_{g}$, while real transition $x_r$ under $\bar{x}$ follows the distribution $\mathbb{P}^{\bar{x}}_{r}$,
-the ultimate goals are tow-folders,
-\begin{itemize}
-    \item $x_g$ has higher probability to be a valid state. For example, for 2D grid world, generate less next state with two agents or blurry agent. This goal is measured and reported in this paper as valid percentage $VP$.
-    \item $\mathbb{P}^{\bar{x}}_{g}$ should approach $\mathbb{P}^{\bar{x}}_{r}$ as close as possible. This goal is measured and reported in this paper with L1 loss.
-\end{itemize}
-To achieve this, there is another model called \textit{Discriminator} $D$, which takes in current state $\bar{x}$ and generated next state $x_g$ or real next state $x_r$, and produces a scalar to evaluate if the input transition pair is 'good' under the concept of a specific distance,
-\begin{equation}\label{d-model}
-    distance = D^{\theta}(\bar{x},\{x_r~or~x_g\})
-\end{equation}
-where $\mu$ is the parameter to learned in $G$.
-Based on the different distance $D$ are measuring, different GAN
-The first goal is a in-build goal for traditional Generative adversarial network (GAN), in which the state-of-the-art Wasserstein GAN with gradient penalty (GP-WGAN) can achieve the best $VP$. However, for the traditional GANs, the second goal is not specially addressed theoretically, as well as verified to be poor in out experiments.
-This motivates us to propose a novel distance
-\begin{algorithm}
-    \caption{SGAN. We use default values of $C=5$, $B=32$, $\alpha=0.0001$, $\beta_1=0.0$, $\beta_2=0.9$. And $\delta$ is computed for different domains.}
-    \label{sgan}
-
-    \textbf{Require:} The number of critic iterations per generator iteration $C$, the batch size $B$, Adam hyper-parameters $\alpha$, $\beta_1$, $\beta_2$, hyper-parameter $\delta$.
-
-    \textbf{Require:} Initial \textit{Discriminator} $D$ parameters $\theta_0$, initial \textit{Generator} $G$ parameters $\mu_0$.
-\begin{algorithmic}[1]
-    \STATE Load offline-DHP model to initialize model with parameter vectors: $\{  \theta_{\hat{\nu}}, \theta_{\hat{\pi}}, \theta_{V} \}$;
-    \WHILE{$\theta$ has not converged}
-        \FOR{$c=1,\cdots,C$}
-            \FOR{$b=1,\cdots,B$}
-                \STATE Sample real transition pair $\bar{x}\rightarrow x_r$, where $x_r \sim \mathbb{P}_r^{\bar{x}}$.
-                \STATE Sample latent variable $\mathfrak{n} \sim U[0,1]$.
-                \STATE $x_g\leftarrow G^{\mu}(\bar{x},\mathfrak{n})$
-                \STATE $d \leftarrow \|x_r-x_g\|$
-                \STATE $T_b \leftarrow d/\delta$
-                \FOR{$t=1,\cdots,T_b$}
-                    \STATE Sample $\tau \sim U[0,1]$
-                    \STATE $x_\tau \leftarrow \tau x_{r} + (1-\tau) x_g$
-                    \STATE $L_d^{(b,t)} \leftarrow \|\nabla_{x_{\tau}}D^{\theta}(\bar{x},x_{\tau})-\frac{x_{r}-x_{g}}{\|x_{r}-x_{g}\|}\|^2 \}$
-                \ENDFOR
-            \ENDFOR
-            \STATE $\theta \leftarrow \textrm{Adam}(\nabla_{\theta}\frac{1}{B}\sum_{b=1}^{B}\frac{1}{T_b}\sum_{t=1}^{T_b}L_d^{(b,t)}, \theta, \alpha, \beta_1, \beta_2)$
-        \ENDFOR
-        \FOR{$b=1,\cdots,B$}
-            \STATE Sample latent variable $\mathfrak{n} \sim U[0,1]$.
-            \STATE $L_g^{(b)} \leftarrow -D^{\theta}(G^{\mu}(\bar{x},\mathfrak{n}))$
-        \ENDFOR
-        \STATE $\mu \leftarrow \textrm{Adam}(\nabla_{\theta}\frac{1}{B}\sum_{b=1}^{B}L_g^{(b)}, \mu, \alpha, \beta_1, \beta_2)$
-    \ENDWHILE
-\end{algorithmic}
-\end{algorithm}
-
-\section{The Proposed $S$ Distance}
-
-{\bf ML: I think, we should define the algorithm first, then introduce these concepts to help explain it. Explaining it first, without saying what we're working up toward, is confusing.}
-
-We consider the one dimensional case as a start, where $x_{r}$ are real samples sampled from distribution $\mathbb{P}_{r}$, and $x_{g}$ are generated samples sampled from distribution $\mathbb{P}_{g}$,
-\begin{equation}\label{x-r}
-   x_{r} \sim \mathbb{P}_{r}
-\end{equation}
-\begin{equation}\label{x-g}
-  x_{g} \sim \mathbb{P}_{g}
-\end{equation}
-Note that both $x_{r}$ and $x_{g}$ are restricted between $[0,1]$. Following is the proposed $S$ distance,
-\begin{equation}\label{s-distance}
-  S(\mathbb{P}_r,\mathbb{P}_g)=\mathbb{E}_{x_g \sim \mathbb{P}_g} \{ | \int_{x_g}^{1} \mathbb{P}_r(x) d x - \int_{x_g}^{1} \mathbb{P}_g(x) d x | \}
-\end{equation}
-While, the Wasserstein distance is defined to be,
-\begin{equation}\label{w-distance}
-  W(\mathbb{P}_r,\mathbb{P}_g)=\sup_{\|f\|_L \leq 1} \{ \mathbb{E}_{x_r \sim \mathbb{P}_r} [f(x_r)] - \mathbb{E}_{x_g \sim \mathbb{P}_g} [f(x_g)] \}
-\end{equation}
-where $f$ belongs to a set of 1-Lipschitz functions.
-Apparently, both $S$ and $W$ distance will be minimized if the $\mathbb{P}_r$ and $\mathbb{P}_g$ are identical.
-In a GAN paradigm, \textit{Generator} $G$ updates itself at each sample $x_g$ to minimize the distance they are based on.
-To take a deeper insight of the advantage of the proposed $S$ distance, we consider what $G$ is trying to minimize at each sample $x_g$, when based on $S$ and $W$ distance respectively.
-When using $S$ distance, $G$ at $x_g$ is minimizing,
-\begin{equation}\label{s-distance-at-xg}
-  S_{\mathbb{P}_r,\mathbb{P}_g}(x_g)= | \int_{x_g}^{1} \mathbb{P}_r(x) d x - \int_{x_g}^{1} \mathbb{P}_g(x) d x |
-\end{equation}
-while using $W$ distance, $G$ at $x_g$ is minimizing,
-\begin{equation}\label{w-distance-xg}
-  W_{\mathbb{P}_r,\mathbb{P}_g}(x_g) = f(x_g) \approx \mathbb{P}_r(x_g) - \mathbb{P}_g(x_g)
-\end{equation}
-We can see that $S_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ consider how unbalance are the two distributions in a whole sight, while the $W_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ considers the unbalance of the two probabilities at this specific $x_g$. One can easily think of a $x_g$, where $W_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ is zero, but the distributions $\mathbb{P}_r$ and $\mathbb{P}_r$ are not identical, which means $W_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ is failing. But under this situation, $S_{\mathbb{P}_r,\mathbb{P}_g}(x_g)$ still gives a right direction for $x_g$ to update, since it observes the unbalance of $\mathbb{P}_r$ and $\mathbb{P}_r$ on each side of the $x_g$.
-
-\section{GAN Based on $S$ Distance}
-Following we proposed the method to achieve this $S$ distance in a GAN.
-We still describe things in one-dimensional case to make it simple and straight forward.
-For every $x_{r}, x_{g}$ pair, we sample $x_{\tau}$ between $x_{r}$ and $x_g$,
-\begin{equation}\label{x-epsilon}
-  x_{\tau} = \tau x_{r} + (1-\tau) x_g
-\end{equation}
-where
-\begin{equation}\label{epsilon}
-  \tau \sim U[0,1]
-\end{equation}
-Following, we consider our problem on a discrete space with interval of $\varepsilon\rightarrow 0$, we give every notation of $x$ a check mark, i.e., $\check{x}$, to mark that they are discrete value under interval $\varepsilon$.
-Later on, we will derive limitation on $\varepsilon\rightarrow 0$, so that we can have a general conclusion on the continuous space.
-Now consider a event denoted by: $\check{x}_\tau\overset{T}{=}\check{x}_n$, which means,
-\begin{itemize}
-  \item Sample $\check{x}_\tau$ for $T$ times, $\check{x}_n$ got sampled as $\check{x}_\tau$ at least for one time.
-\end{itemize}
-To be clear, $\check{x}_\tau$ $\check{x}_r$, $\check{x}_g$ are all random variables, and $\check{x}_n$ is a specific point.
-Apparently, we have,
-\begin{equation}\label{p-epsilon-pr-pg}
-    P(\check{x}_\tau\overset{1}{=}\check{x}_n|\check{x}_r,\check{x}_g)=
-    \begin{cases}
-        \frac{1}{d/\varepsilon} &\mbox{$\check{x}_r<\check{x}_n<\check{x}_g,\check{x}_g<\check{x}_n<\check{x}_r$}\\
-        0 &\mbox{else}
-    \end{cases}
-\end{equation}
-where
-\begin{equation}\label{d}
-  d=|\check{x}_r-\check{x}_g|
-\end{equation}
-If we sample $\check{x}_\tau$ for $T$ times, where
-\begin{equation}\label{T}
-  T = d/{\delta}
-\end{equation}
-Then, we have,
-\begin{eqnarray}\label{p-tau}
-    && P(\check{x}_\tau\overset{T}{=}\check{x}_n|\check{x}_r,\check{x}_g) \nonumber\\
-    &=& 1 - (1-P(\check{x}_\tau\overset{1}{=}\check{x}_n|\check{x}_r,\check{x}_g))^t \nonumber\\
-    &=&
-    \begin{cases}
-        1 - (1-\frac{1}{d/\varepsilon})^{d/\delta} &\mbox{$\check{x}_r<\check{x}_n<\check{x}_g,\check{x}_g<\check{x}_n<\check{x}_r$}\\
-        0 &\mbox{else}
-    \end{cases}
+Generative Adversarial Networks are traditionally introduced in a setting where there is some target (``real'') data source $P_r$ from which samples can be drawn. The GAN itself is defined in terms of two distinct network components: a generator, $G_\theta : \mathbb{R}^m \mapsto \mathbb{R}^n$ and a discriminator, $D_\phi : \mathbb{R}^n \mapsto [0, 1]$. The generator takes randomly sampled noise $z \sim \mathbb{P_Z}$ as input, and produces ``generated samples'' distributed according to $P_{G_\theta}$ as output. The discriminator takes real or generated data points as input and returns a scalar indicating whether a given input is real or generated. These networks are trained together in a mini-max game with the following objective:
+\begin{eqnarray}\label{eq:gan_minimax}
+\lefteqn{\min_{\theta}\max_{\phi} V(D_\phi, G_\theta)}\\
+&=& \mathbb{E}_{P_R}\left[\log D_\phi(X)\right] + \mathbb{E}_{P_{G_\theta}}\left[ \log(1 - D_\phi(X))\right]. \nonumber
 \end{eqnarray}
-Apparently, $\delta$ has to satisfy,
-\begin{equation}\label{deltal-satisfy}
-  \delta = z \varepsilon
+
+To optimize this objective, the generator and discriminator networks take turns, updating their own parameters while the other network's parameters are held fixed. Collectively, this objective can be thought of as the ``certainty'' of the discriminator. The generator aims to minimize this certainty, and in doing so, produce generated samples that are distributionally indistinguishable from those drawn from the real data-generating source. Conversely, the discriminator aims to maximize its own certainty by learning to discern real samples from generated ones, providing pressure on the generator to more closely match the real distribution.
+
+\subsection{Wasserstein Generative Adversarial Networks}
+
+As an alternative to this game-theoretic approach, Wasserstein GANs seek to minimize the Earth-Mover's distance
+% given by Eq.~(\ref{eq:earth-movers})
+between two probability distributions
+\begin{equation}\label{eq:earth-movers}
+W(P_r, P_g) = \underset{\gamma \in \Gamma(P_r, P_g)}{\text{inf}} \mathbb{E}_{(x, y) \sim \gamma}\left[ \| x - y \| \right],
 \end{equation}
-where $z \in Z^{+}$, since $\varepsilon$ is the minimal value a computer can operate, and $\delta$ has to be a positive integer multiple of $\varepsilon$.
-And this $z$ is a fixed value as a hyper-parameter.
-Now, we consider following limit,
-\begin{eqnarray}\label{limit-constant}
-    && \lim_{\delta=z\varepsilon,\varepsilon\rightarrow 0} (1-\frac{1}{d/\varepsilon})^{d/\delta} \nonumber\\
-    \nonumber &=& \lim_{\delta=z\varepsilon,\varepsilon\rightarrow 0} e^{d/\delta \ln(1-\frac{1}{d/\varepsilon})} \\
-    \nonumber &=& \lim_{\delta=z\varepsilon,\varepsilon\rightarrow 0} e^{\frac{\ln(\frac{d-\varepsilon}{d})}{\delta/d}} \\
-    \nonumber &=& \lim_{\varepsilon\rightarrow0} e^{\frac{\frac{d}{d-\varepsilon}\frac{-1}{d}}{z/d}} \\
-    \nonumber &=& e^{-1/z} \\
+where $\Gamma(P_r, P_g)$ represents the set of all joint probability distributions with $P_r$ and $P_g$ as marginal distributions.
+
+While the represention of Earth-Mover's distance provided in Eq.~(\ref{eq:earth-movers}) is not tractable to compute, it can be approximated in its dual form \cite{villani2008optimal}
+\begin{equation}\label{eq:earth-movers-dual}
+W(P_r, P_g) = \underset{\|f\|_L \leq 1}{\text{sup}} \mathbb{E}_{P_r} \left[ f(X) \right] - \mathbb{E}_{P_g} \left[ f(X) \right],
+\end{equation}
+where $\|\cdot\|_L \leq 1$ denotes the space of $1$-Lipschitz functions.
+
+Eq.~(\ref{eq:earth-movers-dual}) can be optimized similarly to the GAN setup described above. The same form of the generator network $G_\theta$ is used to produce generated data samples. However, in place of a discriminator, a critic network $f_\phi$ is used to represent the function $f$ in Eq.~(\ref{eq:earth-movers-dual}). Collectively, the resulting optimization procedure takes the following form:
+\begin{equation}\label{eq:wgan-loss}
+\min_{\theta} W(P_r, P_g) = \max_{\phi}  \mathbb{E}_{P_r} \left[ f_\phi(X) \right] - \mathbb{E}_{P_{G_\theta}} \left[ f_\phi(X) \right],
+\end{equation}
+where the critic network, $f_\phi$, is required to span a sufficiently large class of functions to approximate the supremum in Eq.~(\ref{eq:earth-movers-dual}).
+
+In this setting, the critic updates its parameters successively while the generator network is held fixed to maximize the above expression. After $W(P_r, P_g)$ is sufficiently maximized, the critic's parameters are frozen and the generator network takes a step to minimize $W$.
+
+It is important to note that during this procedure special care must be taken to ensure that the critic function, $f_\phi$, belongs to the class of $1$-Lipschitz functions. The most successful method of ensuring this property is by applying a gradient penalty as an additional term in the loss function~\cite{Gulrajani2017ImprovedTO}.
+
+Bearing this constraint in mind, the success of gradient-based optimization relies heavily on the parameter space of the optimized function being ``nice'' in a topological sense. Particularly, a highly concave or disconnected parameter space provides a much harder optimization problem and increases the likelihood of the optimizer settling on a local optimum. Imposing a $1$-Lipschitz constraint on the optimization procedure certainly complicates the topology of the parameter space.
+
+\subsection{Taylor Series Approximations}
+
+The Taylor series is a popular method that approximates a function with a sum of polynomials of increasing degree. In the one-dimensional setting, it can be expressed as
+\begin{equation}
+f(x) = \sum_{n=0}^\infty \frac{f^{(n)}(x_0)}{n!}(x - x_0)^n,
+\end{equation}
+where $f^{(n)}$ denotes the $n$th derivative of $f$, $n!$ denotes the factorial of $n$, and $x_0$ is an arbitrary point in the domain of $f$. It is important to note the approximation is centered at $x_0$---as $x$ moves away from this central point, the approximation can become less accurate.
+
+\subsection{Fourier Series Approximations}
+
+The Fourier series is another method of approximating functions with a sum of functions, this time sinusoidal functions of decreasing periodicity. In the one-dimensional setting, it can be expressed as
+\begin{equation}
+f(x) = a_0 / 2 + \sum_{n=1}^\infty a_n \sin\left(\frac{2\pi n x}{P}\right) + b_n \cos \left(\frac{2\pi n x}{P}\right),
+\end{equation}
+where the sequences $(a_n)$ and $(b_n)$ are parameters particular to the function $f$ and $P$ is the period of the resulting approximation.
+
+\section{Derivation of the Summable Critic}
+
+We now define a set of properties for a critic representation that we will show leads to improvements on the wGAN framework.
+
+Let $\xi_{n,m} : [-1, 1] \mapsto \mathbb{R}$ be some sequence of functions such that both the functions and their derivatives are bounded: $\max_{x} |\xi_{n,m}(x)| \leq 1$ and
+$\max_{x} |\xi_{n,m}^\prime(x)| \leq b_{n,m}$ for all $n, m$, where $b_{n,m}$ is some bounding constant that does not depend on $x$.
+
+We then define the weighted sum of these functions as follows:
+\begin{equation}
+    f_{A, \xi}(x) = \sum_{n=1}^\infty \sum_{m=1}^M A_{n,m} \xi_{n,m}(x),
+\end{equation}
+where $A_{n,m} \in \mathbb{R}$ and $M \in \mathbb{Z}^+$.
+
+From the above properties, we can derive an upper bound on the gradient of $f_A$:
+\begin{equation}
+\begin{aligned}
+\max_x \left|f^\prime_{A,\xi}(x)\right|
+&= \max_x \left|\sum_{n=1}^\infty \sum_{m=1}^M A_{n,m} \xi^\prime_{n,m}(x) \right|\\
+&\leq \max_x \sum_{n=1}^\infty \sum_{m=1}^M \left| A_{n,m} \right| \left| \xi^\prime_{n,m}(x) \right| \\
+&\leq \sum_{n=1}^\infty \sum_{m=1}^M \left|A_{n,m}\right| b_{n,m}.
+\end{aligned}
+\end{equation}
+
+To simply our notation, we refer to this upper bound as
+\begin{equation}\label{eq:upperbound}
+    \mathcal{L}_\xi(A) = \sum_{n=1}^\infty \sum_{m=1}^M |A_{n,m}| b_{n,m}.
+\end{equation}
+
+If we further assume that most functions $f: [-1, 1] \mapsto \mathbb{R}$ can be expressed by $f_{A, \phi}$ for some sequence of coefficients $(A_{n,m})$, then we can express the dual-form of the Wasserstein distance between distributions with support $[-1, 1]$ as follows:
+\begin{eqnarray}\label{eq:summable_parameterization}
+\lefteqn{W(P_r, P_g)}\\
+%&=& \underset{\max_x|\sum_{n=1}^\infty A_n f^\prime_n(x) | \leq 1}{\sup}\sum_{n=0}^\infty A_n \left(\mathbb{E}_{P_r}[f_n(x)] - \mathbb{E}_{P_g}[f_n(x)]\right) \nonumber\\
+&\approx& \underset{||f_{A, \xi}||_L \leq 1}{\sup}\; \mathbb{E}_{P_r}\left[ f_{A, \xi}(x)\right] - \mathbb{E}_{P_g}\left[ f_{A, \xi}(x)\right] \nonumber\\
+&=& \underset{||f_{A, \xi}||_L \leq 1}{\sup}\; \sum_{n=0}^\infty \sum_{m=1}^M A_{n,m}(\mathbb{E}_{P_r}[\xi_{n,m}(x)] \\
+&&- \mathbb{E}_{P_g}[\xi_{n,m}(x)]) \nonumber\\
+&\approx& \underset{\mathcal{L}_\xi(A) \leq 1}{\sup}\; \sum_{n=0}^\infty \sum_{m=1}^M A_{n,m} (\mathbb{E}_{P_r}[\xi_{n,m}(x)] \\
+&&- \mathbb{E}_{P_g}[\xi_{n,m}(x)]),\nonumber
 \end{eqnarray}
-Put the conclusion of \eqref{limit-constant} into \eqref{p-tau}, we have,
-\begin{eqnarray}\label{final-p-inter}
-    && P(x_\tau\overset{T}{=}x_n|x_r,x_g) = \lim_{\varepsilon,\delta\rightarrow0} P(\check{x}_\tau\overset{T}{=}\check{x}_n|\check{x}_r,\check{x}_g) \nonumber\\
-    &=&
-    \begin{cases}
-        1 - e^{-1/z} &\mbox{$x_r<x_n<x_g,x_g<x_n<x_r$}\\
-        0 &\mbox{else}
-    \end{cases}
+where the last approximation follows from the property that $|f^\prime_{A, \xi}(x) | \leq \mathcal{L}_\xi(A)$ for all $x \in [-1, 1]$.
+
+We emphasize again how, under this new parameterization, the critic's parameters are the coefficients $(A_{n,m})$. The structure of these parameters in the constraint and objective function give us useful properties.
+Specifically, our approximation of the $1$-Lipschitz constraint is convex and the optimization objective with respect to the critic is linear. Hence, we have the following theorem.
+
+\begin{theorem} \label{thm:global_max}
+\normalfont
+During the optimization of a summable critic network, any setting of parameters that is a local maximum is also a global maximum.
+\end{theorem}
+
+\begin{proof}
+\normalfont
+Consider two critic networks:
+\begin{equation*}
+\begin{aligned}
+&f_{A, \xi}(x) = \sum_{n=1}^\infty \sum_{m=1}^M A_{n,m}\xi_{n,m}(x) \\
+&f_{B, \xi}(x) = \sum_{n=1}^\infty \sum_{m=1}^M B_{n,m}\xi_{n,m}(x),
+\end{aligned}
+\end{equation*}
+and suppose that each critic satisfies the constraint given by Eq.~(\ref{eq:upperbound}): $\mathcal{L}_\xi(A) \leq 1$ and $\mathcal{L}_\xi(B) \leq 1$.
+
+Next, consider any critic produced by linearly interpolating between the parameters of $f_{A, \xi}$ and $f_{B, \xi}$. Denote such a critic as
+\begin{equation*}
+f_{\alpha A + (1 - \alpha) B, \xi}(x) = \sum_{n=1}^\infty \sum_{m=1}^M \left(\alpha A_{n,m} + (1 - \alpha) B_{n,m}\right)\xi_{n,m}(x).
+\end{equation*}
+
+We can then bound the derivative of the interpolated critic by
+\begin{equation*}
+\begin{aligned}
+&\left|\sum_{n=1}^\infty \sum_{m=1}^M \left(\alpha A_{n,m} + (1 - \alpha) B_{n,m}\right)\xi^\prime_{n,m}(x) \right| \\
+&\leq \sum_{n=1}^\infty \sum_{m=1}^M \left|\alpha A_{n,m} + (1 - \alpha) B_{n,m}\right| \left|\xi^\prime_{n,m}(x)\right| \\
+&\leq \alpha \mathcal{L}_\xi(A) + (1 - \alpha) \mathcal{L}_\xi(B) \\
+&\leq \alpha + (1-\alpha) \\
+&= 1,
+\end{aligned}
+\end{equation*}
+where the last inequality is due to both $f_{A, \xi}$ and $f_{B, \xi}$ satisfying our modified 1-Lipschitz constraint: $\mathcal{L}_\xi(\cdot) \leq 1$.
+
+Hence, any critic linearly interpolated between two critics satisfying $\mathcal{L}_\xi(\cdot) \leq 1$ also satisfies the constraint. Thus, the space of critics that satisfies our constraint is convex under our summable parameterization.
+
+Next, we observe that the Wasserstein distance under a summable critic parameterization is linear in the parameters of the critic. Collectively, the procedure of maximizing the Wasserstein distance with respect to the critic parameters now has a convex objective and a convex constraint.
+
+Let
+\begin{equation}
+\begin{aligned}
+J(A) &= W(P_r, P_g, f_{A, \xi})\\
+&= \mathbb{E}_{P_r}\left[f_{A, \xi}(x)\right] - \mathbb{E}_{P_g}\left[f_{A, \xi}(x)\right]
+\end{aligned}
+\end{equation}
+be the critic's objective function. Notice how, under the approximation in Eq.~(\ref{eq:summable_parameterization}), $J$ is the equation for a hyperplane. Thus, we have
+\begin{equation*}
+J(\alpha A + (1 - \alpha) B) = \alpha J(A) + (1 - \alpha) J(B)
+\end{equation*}
+for any settings $A$ and $B$ of the critic's parameters.
+
+Next, suppose that $A^*$ and $B^*$ satisfy our constraint and are local maxima of $J$ with $J(B^*) < J(A^*)$ without loss of generality. If $A^*$ and $B^*$ exist, then, from the convexity of the constraint, all interpolations $Z(\alpha) = \alpha A^* + (1-\alpha)B^*$ also satisfy the constraint. Thus, we can consider the sequence of parameter settings given by $Z_t = Z(1/t)$. Clearly, $\lim_{t \to \infty} Z_t = B^*$ and each $Z_t$ satisfies the constraint. Moreover, we can write
+\begin{equation*}
+\begin{aligned}
+J(Z_t) &= \frac{1}{t} J(A^*) + (1 - \frac{1}{t}) J(B^*) \\
+&> \frac{1}{t} J(B^*) + (1 - \frac{1}{t}) J(B^*) \\
+&= J(B^*).
+\end{aligned}
+\end{equation*}
+Since we can construct a sequence of parameters $Z_t$ that approaches $B^*$ with $J(Z_t) > J(B^*)$ for each $Z_t$, this contradicts $B^*$ being a local maximum. Hence, any local maximum must be a global maximum.
+\end{proof}
+
+As a result, we can frame the optimization of the critic as a convex optimization problem, where all local maxima are global maxima.
+
+For appropriate settings of $\xi_{n,m}$, we can use the Fourier or Taylor bases giving
+\begin{eqnarray}
+\lefteqn{W_T(P_r, P_g)}\\
+&=& \underset{\sum_{n=1}^\infty |n A_{n,1}| \leq 1}{\sup} \sum_{n=1}^\infty A_{n,1}\left( \mathbb{E}_{P_r}\left[x^n\right] - \mathbb{E}_{P_g}\left[x^n\right]\right) \nonumber
 \end{eqnarray}
-where we have switch back to the continuous space and have this general conclusion.
-Now, we propose our update rules for the \textit{Discriminator} $D$ with parameter $\theta$ to be optimized,
-\begin{equation}\label{d-loss}
-  \theta \longrightarrow \theta + \nabla_{\theta} \{ - |\nabla_{x_{\tau}}D^{\theta}(x_{\tau})-\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}|^2 \}
-\end{equation}
-which means we try to make $\nabla_{x_{\tau}}D^{\theta}(x_{\tau})$ approach $\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}$. Lets take a look at $\nabla_{x_{\tau}}D^{\theta}(x_{\tau})$ at a specific point $x_n$,
-\begin{eqnarray}\label{d-at-xn}
-    && \nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n) \nonumber\\
-    &=& \mathbb{E}_{\tau \sim U[0,1], x_r\sim\mathbb{P}_r,x_g\sim\mathbb{P}_g} \{\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}\} \nonumber\\
-    &=& P(x_\tau\overset{T}{=}x_n|x_g<x_n<x_r) P(x_g<x_n<x_r) \nonumber\\
-    && - P(x_\tau\overset{T}{=}x_n|x_r<x_n<x_g) P(x_r<x_n<x_g) \nonumber\\
+and
+\begin{eqnarray}
+\lefteqn{W_F(P_r, P_g)}\\
+&=& \underset{\sum_{n=1}^\infty |\pi n A_{n,1}| + |\pi n A_{n,2}| \leq 1}{\sup} \sum_{n=0}^\infty A_{n,1}( \mathbb{E}_{P_r}\left[\cos(n \pi x)\right]\nonumber\\
+&&\;\;\;\;\;- \mathbb{E}_{P_g}\left[\cos(n \pi x) \right]) + \nonumber\\
+&&\;\;A_{n,2} \left(\mathbb{E}_{P_r}\left[\sin(n \pi x)\right] - \mathbb{E}_{P_g}\left[\sin(n \pi x )\right] \right) \nonumber,
 \end{eqnarray}
-which means the value of $\nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n)$ is determined by the probability of it gets positive update and negative update.
-Since \eqref{final-p-inter}, we know that
-\begin{equation}\label{p-inter-conditional-1}
-  P(x_\tau\overset{T}{=}x_n|x_g<x_n<x_r)=1 - e^{-1/z}
+respectively.
+
+Thus, by representing the class of critic functions as Taylor or Fourier expansions, we obtain a clean way to enforce the $1$-Lipschitz constraint over the entire domain, while ensuring that gradient-based optimization schemes can find the globally optimal critic. We note that by enforcing an upper bound on the $1$-Lipschitz constraint, we are optimizing over a smaller set of functions. However, we have not noticed this additional constriction to affect performance empirically.
+
+When minimizing the expresions above, slight modifications must be made for computational tractability. First, we must choose some $N < \infty$ and cut off the remaining terms in the outer sum. Second, we must enforce our constraint as a penalty term in the loss function. Fortunately, neither of these practical considerations change the theoretical guarantees proved above. Particularly, limiting the number of terms in the outer sum to $N$ does not affect the our convexity-based arguments and embedding the constraint into the loss function as a penalty still results in a convex optimization problem.
+
+
+\section{Connection with Moment Matching and Maximum Mean Discrepancy}
+
+In this section, we review two methods in statistics that exhibit similar characteristics
+to the Wasserstein distance metric and the summable parameterization we presented in this work.
+
+\subsection{Maximum Mean Discrepancy}
+
+Recent work by \namecite{Gretton2012AKT} explores the ``Maximum Mean Discrepancy'' technique to distinguish between samples drawn from different data sources. The Maximum Mean Discrepancy (also known as an Integral Probability Metric) between two data sources is defined as
+\begin{equation}
+\text{MMD}(\mathcal{F}, P_X, P_Y) = \sup_{f \in \mathcal{F}} \mathbb{E}_{P_X}\left[f(X)\right] - \mathbb{E}_{P_Y}\left[f(Y)\right],
 \end{equation}
-\begin{equation}\label{p-inter-conditional-2}
-  P(x_\tau\overset{T}{=}x_n|x_r<x_n<x_g)=1 - e^{-1/z}
+where $P_X$ and $P_Y$ are the distributions of the data sources and $\mathcal{F}$ is some function class that is sufficiently rich that $P_X = P_Y$ when $\text{MMD}(\mathcal{F}, P_X, P_Y) = 0$.
+
+Notice how the dual-form of Wasserstein distance is a specical case of the above Integral Probability Metric when $\mathcal{F}$ is the set of $1$-Lipschitz functions.
+
+In their work, \namecite{Gretton2012AKT} explore using Reproducing Kernel Hilbert Spaces~\cite{berlinet2011reproducing} as the function class to perform their maximum mean discrepancy tests. This kernel-based approach is adopted by \namecite{Li2015GenerativeMM} in their work on Generative Moment Matching Networks. This work offers a method that competes directly with GANs. Rather than a mini-max game between a generator and discriminator, Generative Moment Matching Networks boast only needing a generator network that is trained to minimize the Maximum Mean Discrepancy between the real and generated sources. The authors note that their use of kernels approximates matching the moments of the sampled and generated random variables.
+
+\subsection{Moment Matching}
+
+Moment matching, also known as the ``method-of-moments'' is the process of fitting a model to a distribution by sampling from that distribution and setting the model's parameters to be the distribution's sampled moments. In general, moments can refer to any set of functions that characterize the behavior of a random variable, but they are most commonly represented as the random variable raised to different powers. For any $n \geq 1$, we denote the $n$th moment of a random variable $X$ as
+\begin{equation}
+m_n(X) = \mathbb{E}_{P_x} \left[ X^n\right].
 \end{equation}
-Put \eqref{p-inter-conditional-1} \eqref{p-inter-conditional-2} into \eqref{d-at-xn}, we have,
-\begin{eqnarray}\label{explain-d-gradient}
-    && \nabla_{x_{\tau}=x_n} D^{\theta}(x_{\tau}=x_n) \nonumber\\
-    &=& [P(x_g<x_n<x_r) - P(x_r<x_n<x_g)](1 - e^{-1/z}) \nonumber\\
-    &=& [P(x_g<x_n)P(x_n<x_r) \nonumber\\
-    && - P(x_r<x_n)P(x_n<x_g)](1 - e^{-1/z}) \nonumber\\
-    &=& [\int_{0}^{x_n}\mathbb{P}_g(x)dx \int_{x_n}^{1}\mathbb{P}_r(x)dx \nonumber\\
-    && - \int_{0}^{x_n}\mathbb{P}_r(x)dx \int_{x_n}^{1}\mathbb{P}_g(x)dx](1 - e^{-1/z}) \nonumber\\
-    &=& [\int_{x_n}^{1}\mathbb{P}_r(x)dx-\int_{x_n}^{1}\mathbb{P}_g(x)dx](1 - e^{-1/z})
-\end{eqnarray}
-Now, we can give the update rule of \textit{Generator} $G$ with parameter $\mu$ to be learnt, and we put \eqref{explain-d-gradient} in this update rule to have a clearer view on what $G$ is doing,
-\begin{eqnarray}\label{g-loss}
-  && \mu \nonumber\\
-  & \longrightarrow & \mu + \nabla_{\mu} \{ D^{\theta}(G^{\mu}(x_g)) \} \nonumber\\
-  & \longrightarrow & \mu + \nabla_{\mu} \{ \frac{\partial D^{\theta}(G^{\mu}(x_g))}{\partial G^{\mu}(x_g)} \frac{\partial G^{\mu}(x_g)}{\partial \mu} \} \nonumber\\
-  & \longrightarrow & \mu + \{[\int_{x_g}^{1}\mathbb{P}_r(x)dx\nonumber\\
-  && -\int_{x_g}^{1}\mathbb{P}_g(x)dx](1 - e^{-1/z})(\nabla_{\mu}G^{\mu}(x_g)) \} \nonumber\\
-\end{eqnarray}
-which means wherever $x_g$ is, it is updating itself to make $\int_{x_g}^{1}\mathbb{P}_g(x)dx$ approaching $\int_{x_g}^{1}\mathbb{P}_r(x)dx$.
-One can just take a few cases to confirm this.
-The absolute error when updating $G$ is actually modelling the proposed $S$ distance in \eqref{s-distance} \eqref{s-distance-at-xg}.
 
-\section{Between SGAN and Gradient Penalty in WGAN}
-
-Gradient penalty WGAN (GP-WGAN) \cite{gulrajani2017improved} has been proposed as the state-of-the-art GAN. In GP-WGAN, they proposed adding a gradient penalty loss to the original loss of $D$ in WGAN, to impose 1-Lipschitz constrain. The gradient penalty is defined as,
-\begin{equation}\label{gp-loss}
-    \theta \longrightarrow \theta + \nabla_{\theta} \{ - (|\nabla_{x_{\iota}}D^{\theta}(x_{\iota})|-1)^2 \}
+Particularly notice that for critics represented by the Taylor series parameterization, the Wasserstein distance can be expressed as a sum of weighted moments:
+\begin{equation}
+W_T(P_r, P_g) = \max_{\sum_{n=1}^\infty |n A_{n,1}| \leq 1} \sum_{n=1}^\infty A_{n,1}\left(\mathbb{E}_{P_r}\left[ X^n \right] - \mathbb{E}_{P_g} \left[ X^n \right]\right).
 \end{equation}
-where $x_\iota$ is defined similar as $x_\tau$ in our SGAN,
-\begin{equation}\label{x-iota}
-  x_{\iota} = \iota x_{r} + (1-\iota) x_g
+
+\section{Experiments}
+In the following subsections, we describe our experimental procedure.
+\subsection{Domains}
+We evaluated our method against three different synthetic data sources and one real-world data source. Our synthetic data sources consisted of a ``sawtooth'' distribution, a discrete distribution with three possible values, and a mixture of two Gaussian distributions. Each distribution was sampled $10,000$ times to construct a dataset that was then used across all experiments and models.  These distributions correpond to the following random variables defined below:
+\begin{equation}
+\begin{aligned}
+&X_\text{sawtooth} = \sqrt{Y_1} - 1\\
+&X_\text{discrete} = \frac{1}{2}\left(-\boldsymbol{1}\{ Y_2 < 0.25\} + \boldsymbol{1}\{Y_2 > 0.75\}\right)\\
+&X_\text{mixture} = B N_1 + (1 - B) N_2,
+\end{aligned}
 \end{equation}
-\begin{equation}\label{iota}
-  \iota \sim U[0,1]
-\end{equation}
-The only difference is that they sample $x_\iota$ only once for each $x_r,x_g$ pair, but we sample $x_\tau$ for $T$ times for each $x_r,x_g$ pair, recall \eqref{T}.
-The motivation when they propose this gradient penalty is the optimal $D$ in WGAN,
-\begin{equation}\label{optimal-d-in-wgan}
-  \mathbb{E}_{x_r\sim\mathbb{P}_r,x_g\sim\mathbb{P}_g} \{\nabla_{x_{\iota}}D^{\ast}(x_\iota)=\frac{x_r-x_g}{|x_r-x_g|}\}
-\end{equation}
-which is strictly proved in \cite{gulrajani2017improved}.
+where $Y_1, Y_2 \sim \text{Uniform}(0, 1)$, $B \sim \text{Bernoulli}(0.5)$, $N_1 \sim \text{Normal}(0.5, 0.05)$ and $N_2 \sim \text{Normal}(-0.5, 0.05)$.
 
-One can see that \eqref{optimal-d-in-wgan} gives the information on the direction as well as the magnitude of $D^{\ast}$ in WGAN.
-While the gradient penalty in \eqref{gp-loss} only make a loss of the magnitude regarding to $D^{\ast}$, which raise our question of why not impose both magnitude and direction gradient penalty to the $D$, so that the $D$ can better approach this $D^{\ast}$.
-Here we give the gradient penalty that is imposing both direction and magnitude towards $D^{\ast}$,
-\begin{equation}\label{gp-loss-direction}
-  \theta \longrightarrow \theta + \nabla_{\theta} \{ - |\nabla_{x_{\iota}}D^{\theta}(x_{\iota})-\frac{x_{r}-x_{g}}{|x_{r}-x_{g}|}|^2 \}
-\end{equation}
-One can also recall that in our SGAN, the update rule of $D$ in \eqref{d-loss} seems to be exactly same as \eqref{gp-loss-direction}, which raise the question of if the proposed SGAN is just doing this optimal $D^{\ast}$ in the concept of WGAN.
+Our real-world data source is a collection of city populations from the Free World Cities Database (https://www.maxmind.com/en/free-world-cities-database). We pre-processed this data by applying a logarithmic scaling to the population numbers and normalizing the resulting log-populations to be between $-1$ and $1$. We denote the random variable associated with this data source as $X_\text{cities}$.
 
-Both question can be answered when we consider following argument.
-In the concept of WGAN, the direction of $D^{\ast}$ in \eqref{optimal-d-in-wgan} is actually not achievable.
-Equation \eqref{optimal-d-in-wgan} is expressed in a form of expectation, which means if we use gradient penalty as \eqref{gp-loss-direction}, we are updating $\nabla_{x_{\iota}}D^{\theta}(x_{\iota})$ in diverse directions for all possible $x_r,x_g$ pairs.
-This further means the final result we have for $\nabla_{x_{\iota}}D^{\theta}(x_{\iota})$ would rely on the probability of it got updated towards different directions (exactly what we are doing in the concept of SGAN), instead of reaching $D^{\ast}$ in \eqref{optimal-d-in-wgan}.
-We think that is why the gradient penalty in \eqref{gp-loss} only consider impose the magnitude gradient penalty towards optimal $D^{\ast}$ with \eqref{gp-loss}.
-We also have experiment shows that when impose \eqref{gp-loss-direction} as a gradient penalty in WGAN, or say, impose both direction and magnitude towards $D^{\ast}$, WGAN is failing.
+Figure~\ref{fig:true_histograms} characterizes each of these data sources by sampling a million points from each and plotting their histograms.
 
-Apparently, if we try to impose both direction and magnitude towards $D^{\ast}$, we are naturally fall into the concept of $S$ distance, which has been explicit in this paper.
-And the sampling $T$ times become crucial to track the expectation of $\nabla_{x_{\tau}}D^{\theta}(x_{\tau})$, as also has been explicit.
-When we are doing this, the assumptions for WGAN are not holding any more, so we are not imposing a optimal $D$ under W distance concept any more.
-That is also why we can omit the basic update rules of WGAN's $D$.
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth/3]{true_hist_fig_vert.pdf}
+    \caption{Histograms generated by drawing 1,000,000 samples of random variables (a) $X_\text{sawtooth}$, (b) $X_\text{mixture}$, (c) $X_\text{discrete}$ and (d) $X_\text{cities}$.}
+    \label{fig:true_histograms}
+\end{figure}
 
-\section{Experimental Comparisons}
+\subsection{Network Architectures}
 
-Comparison algorithms:
-\begin{enumerate}
-\item Tabular learner.
-\item (Can we do a Bayes net learner?)
-\item Deterministic deep net.
-\item WGAN.
-\item WGAN with rejection.
-\item WGAN with separately learned rejection.
-\end{enumerate}
+To maintain consistency between experiments, we used the same generator network architecture for both the wGAN-GP experiments and for our method. This generator network architecture consists of $3$ batch-normalized, fully connected layers with $500$ neurons each and leaky ReLU activation, followed by a single fully connected output layer with $1$ neuron and a $\text{tanh}$ activation. The wGAN-GP experiment used a discriminator with $2$ fully connected layers with $100$ neurons each and leaky ReLU activations, followed by a single fully connected output layer with $1$ neuron and linear activation. Following \namecite{Gulrajani2017ImprovedTO}, we used $\lambda = 10$ to enforce constraints across all experiments. Additionally, we used the AdamOptimizer \cite{Kingma2014AdamAM} with $\beta_1 = 0$, $\beta_2 = 0.9$ and a learning rate of $0.0001$. For all reparameterized critic models we clipped the infinite sums in the expansions at $N = 20$. Additionally, batch normalization \cite{Ioffe2015BatchNA} is used for all generator networks in our experiments.
 
-Comparison environments:
-\begin{enumerate}
-\item Random 1d walk: $n$ bits, Pr(right) = 2/3, Pr(left) = 1/3, wrap around.
-\item Random 1d flips: $n$ bits. Next state is generated by picking a random bit position and flipping it.
-\item Russell Norvig grid dynamics with no obstacles. (Pr up is .8, right is .1, left is .1, down is 0. Grid is maybe 5x5?).
-\item Russell Norvig grid dynamics with obstacles.
-\item Marbles!
-\end{enumerate}
+\subsection{Evaluation Procedure}
+
+All of the comparison algorithms attempt to learn a representation of the target 1-dimensional probability distribution. For each model, we measure its accuracy by computing the sample Earth-Mover's distance. This quantity is computed by sampling the model $10,000$ times and constructing a histogram out of its sampled outputs. The entries in these histograms are then normalized so that the sum of the bin values is $1$. A similar histogram is then constructed using the true data source, and the Earth-Mover's distance is computed between them. For computing the Earth-Mover's distance, we used the publicly available Python library pyEMD.
+% (yyy do I need to source this?). nah
+% cool.
+For each of the GAN methods, training was conducted over $100,000$ iterations, with an estimate of the Earth-Mover's distance being computed with the training data every $1000$ iterations. At the end of training, the lowest estimate over the course of training is reported as the model's Earth-Mover's distance (EMD).
 
 \subsection{Results}
 
-For a, we expect 1 and perhaps 2 to do well. 3 will fail in spite of the simplicity, because it will turn 0s and 1s into fractional values. Not sure about 4, 5, 6, but we're definitely hoping 6 is robust even for large $n$. We might want to try $n \in \{5, 10, 20\}$.
+We present the results of running $4$ trials for each of the GAN-based models.
+We denote our runs with reparameterized critics as ``Taylor Critic'' and ``Fourier Critic'' for the Fourier Series and Taylor Series reparameterizations, respectively. The best obtained Earth-Mover's distances for each run and model are reported in Tables \ref{tab:gm_runs}, \ref{tab:disc_runs}, \ref{tab:sawtooth_runs} and \ref{tab:cities_runs}. We additionally report the average Earth-Mover's distances across the 4 trials and compare these numbers to the performance of a Kernel Density Estimator as a nonparametric baseline. These results are posted in Table~\ref{tab:average_results}.
+\begin{table}[!htb]
+\centering
+\begin{tabular}{||c||c|c|c|c||}
+\hline
+ & $X_\text{mixture}$ & $X_\text{discrete}$ & $X_\text{sawtooth}$ & $X_\text{cities}$ \\ [0.5ex]
+ \hline\hline
+ KDE & 0.0073 & 0.01002 & 0.0040 & 0.0027
+ \\
+ \hline
+ wGAN-GP & 0.0822 & 0.1318 & 0.26055 & 0.0188 \\
+ \hline
+ Taylor Critic & 0.0216 & \textbf{0.0106} & 0.0151 & \textbf{0.0096} \\
+ \hline
+ Fourier Critic & \textbf{0.0186} & 0.0193 & \textbf{0.0109} & 0.0103 \\
+ \hline
+\end{tabular}
+    \caption{Table containing the average Earth-Mover's Distances over the $4$ runs detailed in Tables \ref{tab:gm_runs}, \ref{tab:disc_runs}, \ref{tab:sawtooth_runs} and \ref{tab:cities_runs} for each GAN-based model.}\label{tab:average_results}
+\end{table}
 
-For b, if we try $n \in \{5,10,20\}$, 1 should fail. There are simply too many reachable states to expect to see them. Not sure about 2.
+\begin{table}[!htb]
+\centering
+\begin{tabular}{||c||c|c|c|c||}
+\hline
+& \multicolumn{4}{c||}{$X_\text{mixture}$} \\
+\hline
+ & $1$ & $2$ & $3$ & $4$ \\ [0.5ex]
+ \hline\hline
+ wGAN-GP & 0.0206 & 0.0279 & \emph{0.2578} & 0.0226 \\
+ \hline
+ Taylor Critic & 0.0179 & 0.0216 & 0.0217 & 0.0250 \\
+ \hline
+ Fourier Critic & 0.0204 & \textbf{0.0164} & 0.0201 & 0.0175 \\
+ \hline
+\end{tabular}
+    \caption{Table of Earth-Mover's distances for $4$ runs of the wGAN-GP, Taylor Critic and Fourier Critic on the Gaussian Mixture dataset. Run~3 of the wGAN-GP illustrates its instability.}\label{tab:gm_runs}
+\end{table}
 
-I'm hoping that c and d will have similar results, in which case we probably just want to report d (since it adds the visual element).
+\begin{table}[!htb]
+\centering
+\begin{tabular}{||c||c|c|c|c||}
+\hline
+& \multicolumn{4}{c||}{$X_\text{discrete}$} \\
+\hline
+ & $1$ & $2$ & $3$ & $4$ \\ [0.5ex]
+ \hline\hline
+ wGAN-GP & 0.1381 & 0.1333 & 0.1314 & 0.1242 \\
+ \hline
+ Taylor Critic & \textbf{0.0091} & 0.0121 & 0.0103 & 0.0110 \\
+ \hline
+ Fourier Critic & 0.0129 & 0.0129 & 0.0287 & 0.0226 \\
+ \hline
+\end{tabular}
+    \caption{Table of Earth-Mover's Distances for $4$ runs of the wGAN-GP, Taylor Critic and Fourier Critic on the Discrete dataset.}\label{tab:disc_runs}
+\end{table}
 
-Finally, if e works, that's a great way to end.
+\begin{table}[!htb]
+\centering
+\begin{tabular}{||c||c|c|c|c||}
+\hline
+& \multicolumn{4}{c||}{$X_\text{sawtooth}$} \\
+\hline
+ & $1$ & $2$ & $3$ & $4$ \\ [0.5ex]
+ \hline\hline
+ wGAN-GP & \emph{0.4891} & 0.0226 & \emph{0.4653} & 0.0652 \\
+ \hline
+ Taylor Critic & 0.0157 & 0.0133 & 0.0152 & 0.0161 \\
+ \hline
+ Fourier Critic & \textbf{0.0081} & 0.0132 & 0.0132 & 0.0091 \\
+ \hline
+\end{tabular}
+    \caption{Table of Earth-Mover's distances for $4$ runs of the wGAN-GP, Taylor Critic and Fourier Critic on the Sawtooth dataset.  Runs~1 and~3 of the wGAN-GP illustrate its instability.}\label{tab:sawtooth_runs}
+\end{table}
 
-For a--d, we can measure how good the model is by picking a starting state, running the learned model for $k$ steps, perhaps rounding to the nearest non-fractional representation, and running the real dynamics for $k$ steps and measuring the KL divergence or L1 distance.
+\begin{table}[!htb]
+\centering
+\begin{tabular}{||c||c|c|c|c||}
+\hline
+& \multicolumn{4}{c||}{$X_\text{cities}$} \\
+\hline
+ & $1$ & $2$ & $3$ & $4$ \\ [0.5ex]
+ \hline\hline
+ wGAN-GP & 0.0225 & 0.0189 & 0.0182 & 0.0157 \\
+ \hline
+ Taylor Critic & 0.0120 & 0.0103 & \textbf{0.0066} & 0.0094 \\
+ \hline
+ Fourier Critic & 0.0108 & 0.0069 & 0.0086 & 0.0150 \\
+ \hline
+\end{tabular}
+    \caption{Table of Earth-Mover's distances for $4$ runs of the wGAN-GP, Taylor Critic and Fourier Critic on the City Population dataset.}\label{tab:cities_runs}
+\end{table}
 
-RESULTS TABLE.
 
-Note that the table measures the L1 distance between the generated and real distributions. The measurement is conducted with 2000 samples (filtered to 1000 samples), and averaged under 50 times measurement.
+We observe that both models with reparameterized critics significantly outperform wGAN-GP and are frequently competitive with Kernel Density Estimation. From Tables \ref{tab:gm_runs}, \ref{tab:disc_runs}, \ref{tab:sawtooth_runs} and \ref{tab:cities_runs} we observe that the  reparameterized critic models' worst runs are generally better than the wGAN-GP model's best runs, and the reparameterized critic models have significantly lower variance across runs than wGAN-GP.
 
-E gives about 100\% improvement when the domain is image (1D grid and 2D grid).
-E gives no improvement when the domain is vector. F gives very slight improvement (about 5\%) without E. F gives 40\% improvement with E under the domain of image. F gives no improvement with E under the domain of vector.
+Since all GAN-based methods in this paper have the same network architecture for their generators, it is reasonable to attribute this difference to the forms of the critics. As we showed in Theorem \ref{thm:global_max}, the process of optimizing the critic with respect to a given generator cannot ``get stuck'' in some locally maximal region of the space of critics. Thus, as long as the set of critics satisfying $\mathcal{L}_\xi(\cdot) \leq 1$ is sufficiently close to the set of critics satisfying $\| \cdot \|_L \leq 1$, then the generator should always have a clean gradient to follow during its optimization as shown in Lemma~1 of \namecite{Gulrajani2017ImprovedTO}.
 
-It makes sense that the autoencoder only helps when dealing with images because the autoencoder is correcting the input using an abstraction. You can think of it like this: If the input space is high-dimensional, and the autoencoder has a bottleneck, it has to map a bunch of similar values to the same internal representation before reconstructing. This results in slightly corrupted generated images getting mapped to the same internal representation as their corresponding uncorrupted generated images. In the bitvector case, there is less room for this abstraction to occur, because the input space is small.
+While this does not preclude the possibility that the generator itself could ``get stuck'' during its own optimization against the critic, the difference in consistency across runs between the reparameterized critic models and the wGAN-GP models is evidence that the additional guarantees on reparameterized critics helps empirically. Note that we made every effort to set the hyperparameters of GP-wGAN to reduce or eliminate its instability. It is possible that it would perform better with some other parameter setting, but we were not able to find such a setting. That being said the performance of the reparameterized critic models was relatively unchanged across the parameter settings we explored.
 
-\section{Thinking About Loss Functions}
+\section{Conclusion and Future Work}
+In this work, we illustrated an alternate parameterization of the critic networks that has ideal theoretical properties for gradient-based optimization. We demonstrated that, in the one-dimensional setting, our summable critic models categorically outperform Wasserstein GAN with gradient penalty and are competitive with Kernel Density Estimation on a variety of synthetic and real-world domains.
 
-Here's my argument for why it should work. Let's say the generator outputs a bunch of possible answers $x_1,\ldots,x_k$. The real distribution assigns these outcomes probabilities of $p_1,\ldots,p_k$, and the generator assigns them $g_1,\ldots,g_k$.
+While our work on this paper focuses on the one-dimensional setting, there is considerable room to explore extending the approach to higher dimensions. For both the Taylor and Fourier series expansions, there are high-dimensional analogues. These higher-dimensional decompositions generally require exponentially many terms in the number of input dimensions. It may be possible to alleviate this computational cost by exploiting recent techniques to learn sparse polynomials or Fourier series~\cite{Andoni2014LearningSP,Hassanieh2012NearlyOS}. Particularly, while all exponentially many terms of these series may be necessary to model arbitrarily messy functions, it is unlikely that all or even most of them will be required to reasonably approximate the space of $1$-Lipschitz functions.
 
-We randomly choose $s \sim \mbox{\rm Uniform}(\{-1,1\})$. If $s = 1$, draw $i \sim p_1,\ldots,p_k$. Otherwise, if $s = -1$, $i \sim g_1,\ldots,g_k$. Now, we send $x_i$ to the discriminator. It outputs $d \in \{-1,1\}$ and incurs a loss of $|d-s| = 1-ds$. That is, it's guessing whether the source of $x_i$ was the real data ($1$) or the generator ($-1$).
 
-The discriminator is a mapping from $x_i$ to $\{-1,1\}$. That is, we can capture the discriminator with a vector $d_1,\ldots,d_k$. What is the loss for $d_1,\ldots,d_k$?
-\begin{eqnarray*}
-\lefteqn{\frac{1}{2} \sum_i p_i (1-d_i) + \frac{1}{2} \sum_i g_i (1+d_i)}\\
-&=& \frac{1}{2} \sum_i (p_i - p_i d_i + g_i + g_i d_i)\\
-&=& \frac{1}{2} \sum_i d_i (g_i-p_i) + \frac{1}{2} \sum_i p_i + \frac{1}{2} \sum_i g_i \\
-&=& \frac{1}{2} \sum_i d_i (g_i-p_i) + 1
-\end{eqnarray*}
+% \end{document}
 
-What $d$ vector minimizes this loss? It is $d_i = 1$ if $p_i>g_i$, $d_i = -1$ otherwise. That is, when the discriminator sees $x_i$, it should guess $1$ (``real'') if the probability that the real distribution assigns to $x_i$ is larger than that assigned to it by the generator.
-
-If it chooses this $d$ vector, the loss becomes:
-$$
--\frac{1}{2} \sum_i |g_i-p_i| + 1.
-$$
-What $g$ maximizes this loss? Setting $g_i=p_i$ causes the loss to be $1$. Any deviation from this choice will decrease the loss. Basically, the discriminator gets an advantage whenever the two probabilities deviate because it can be right more often by choosing the answer that assigns that example higher probability.
-
-\section{Future Work}
-
-Planning using the learned models.
-
-% christopher_grimm@brown.edu
+\newpage
 
 \bibliographystyle{aaai}
 \bibliography{mlittman}
 
 
 \end{document}
-
-
-6 pages, plus one for references
-
-
-Here's an idea for a reward language that subsumes GLTL and standard reward functions. Grammar:
-A value function for a task assigns a numeric value to a branching future of states and actions. V_task(T). The task's target behavior is that which induces a branching future of states and actions with the highest possible value.
-Each state is represented by a vector of features Phi(s). Any feature can be associated with a value.
-If F and G are value functions, then max(F,G) is a reward function, as is min(F,G) and F+G.
-
-\subsubsection{my subsubsection}
-
-\subsection{My subsection}
-
-We present a compositional representation for complex tasks that is compatible with environments represented as Markov decision processes~\cite{Puterman94}. It subsumes the standard reward-function representation used in MDPs as well as the Geometric Linear Temporal Logic representation proposed by \namecite{littman17}. Like the work on rewarding behaviors~\cite{bacchus96}, it combines numeric rewards and temporal logic representations.
-
-\subsection{Examples}
-
-Get to the goal without
-
-\subsection{Formal Definition}
-
-\section{Properties}
-
-how to plan, how to do RL. explicit task representation is needed for the approaches we describe.
-
-\section{Conclusion}
-
-In a companion paper, we address the problem of learning an LTR task from human-delivered feedback over a series of trials.
-
-\section{Related Work}
-
-The algebraic approach to task representations explored in this work is in the same spirit of some existing work such as the analysis of optimal-policy preserving reward-function transformations of \namecite{ng99} and the compositional options framework of \namecite{silver12}.
